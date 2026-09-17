@@ -36,7 +36,7 @@ struct GameContainerView: View {
                     Spacer()
                     if let npc = game.nearby, game.activeDilemma == nil, game.activeEvent == nil {
                         Button {
-                            game.activeDilemma = DilemmaCatalog.dilemma(for: npc, holdingLetter: game.has(.letter))
+                            game.activeDilemma = DilemmaCatalog.dilemma(for: npc, holding: Set(game.inventory))
                         } label: {
                             Text("Approach")
                                 .font(Theme.body(16))

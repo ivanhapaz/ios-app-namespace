@@ -23,11 +23,11 @@ final class QuestTests: XCTestCase {
 
     func testCromwellOffersDeliveryOnlyWhenHoldingLetter() {
         // Without the letter, Cromwell gives his default loyalty dilemma.
-        let normal = DilemmaCatalog.dilemma(for: .cromwell, holdingLetter: false)
+        let normal = DilemmaCatalog.dilemma(for: .cromwell, holding: [])
         XCTAssertFalse(normal.choiceA.text.localizedCaseInsensitiveContains("deliver"))
 
         // Holding the letter, he offers to buy it.
-        let delivery = DilemmaCatalog.dilemma(for: .cromwell, holdingLetter: true)
+        let delivery = DilemmaCatalog.dilemma(for: .cromwell, holding: [.letter])
         XCTAssertTrue(delivery.choiceA.consume == .letter)
     }
 
@@ -37,7 +37,7 @@ final class QuestTests: XCTestCase {
         let beforeWealth = game.meters.wealth
         let beforeFavor = game.meters.royalFavor
 
-        let delivery = DilemmaCatalog.dilemma(for: .cromwell, holdingLetter: true)
+        let delivery = DilemmaCatalog.dilemma(for: .cromwell, holding: [.letter])
         game.choose(delivery.choiceA)
 
         XCTAssertFalse(game.has(.letter), "Delivering should consume the letter")
@@ -49,7 +49,7 @@ final class QuestTests: XCTestCase {
         let game = GameState()
         game.add(.letter)
 
-        let delivery = DilemmaCatalog.dilemma(for: .cromwell, holdingLetter: true)
+        let delivery = DilemmaCatalog.dilemma(for: .cromwell, holding: [.letter])
         game.choose(delivery.choiceA)
 
         XCTAssertNil(game.activeEvent, "The arrest should not fire immediately")
