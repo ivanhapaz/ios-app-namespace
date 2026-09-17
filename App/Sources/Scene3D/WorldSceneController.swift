@@ -113,7 +113,7 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
         let door = SCNBox(width: 1.6, height: 2.6, length: 0.2, chamferRadius: 0.05)
         door.firstMaterial?.diffuse.contents = UIColor(red: 0.20, green: 0.13, blue: 0.08, alpha: 1)
         let doorNode = SCNNode(geometry: door)
-        doorNode.position = SCNVector3(x: 0, y: 1.3 - size.y / 2, z: CGFloat(size.z) / 2 + 0.05)
+        doorNode.position = SCNVector3(x: 0, y: 1.3 - size.y / 2, z: size.z / 2 + 0.05)
         node.addChildNode(doorNode)
 
         scene.rootNode.addChildNode(node)
