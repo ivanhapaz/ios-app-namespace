@@ -1,0 +1,17 @@
+# .github/workflows/ci.yml
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: namespace-profile-ivanha
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Confirm runner and Xcode
+        run: |
+          xcodebuild -version
+          uname -m
