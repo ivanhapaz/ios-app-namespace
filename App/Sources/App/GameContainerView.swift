@@ -1,10 +1,8 @@
 import SwiftUI
 
-/// Hosts the 3D palace and overlays the game UI: the four-meter HUD, a room +
-/// objective banner, the movement joystick, the "Approach" prompt, the dialogue
-/// card, room-transition fade, and the game-over screen. `MovementInput` and
-/// `GameState` are held as stable state so the joystick, HUD, and scene
-/// controller all share the same instances.
+/// Hosts the 3D palace and layers the manuscript UI over it, driven by the game
+/// phase: a title screen, the live HUD + inventory + dialogue, room-transition
+/// fade, and the game-over screen.
 struct GameContainerView: View {
     @State private var input = MovementInput()
     @StateObject private var game = GameState()
@@ -14,85 +12,80 @@ struct GameContainerView: View {
             GameSceneView(input: input, game: game)
                 .ignoresSafeArea()
 
-            // Top: meters + room/objective banner.
-            VStack(spacing: 8) {
-                MetersHUD(meters: game.meters)
-                    .padding(.top, 10)
-                banner
-                Spacer()
+            // Movement: drag anywhere on the open view (only while playing).
+            if game.phase == .playing {
+                MoveCatcher(input: input)
+                    .ignoresSafeArea()
             }
 
-            // Bottom: movement + decorative item bar.
-            VStack {
-                Spacer()
-                HStack(alignment: .bottom) {
-                    JoystickView(input: input)
+            // HUD + inventory during play.
+            if game.phase == .playing {
+                VStack(spacing: 0) {
+                    MetersHUD(meters: game.meters)
+                        .padding(.horizontal, 14)
+                        .padding(.top, 8)
                     Spacer()
-                    ItemBar()
+                    InventoryBar(day: game.day)
+                        .padding(.horizontal, 14)
+                        .padding(.bottom, 8)
                 }
-                .padding(.horizontal, 24)
-                .padding(.bottom, 28)
-            }
 
-            // "Approach" prompt when near an NPC (and not already busy).
-            if let npc = game.nearby, game.activeDilemma == nil, game.gameOver == nil {
-                VStack {
-                    Spacer()
-                    Button {
-                        game.activeDilemma = DilemmaCatalog.dilemma(for: npc)
-                    } label: {
-                        Label("Approach", systemImage: "bubble.left.fill")
-                            .font(.system(.headline, design: .serif))
-                            .padding(.horizontal, 22)
-                            .padding(.vertical, 12)
-                            .background(Capsule().fill(Color(red: 0.30, green: 0.25, blue: 0.50)))
-                            .foregroundStyle(.white)
+                if let npc = game.nearby, game.activeDilemma == nil {
+                    VStack {
+                        Spacer()
+                        Button {
+                            game.activeDilemma = DilemmaCatalog.dilemma(for: npc)
+                        } label: {
+                            Text("Approach")
+                                .font(Theme.body(16))
+                                .foregroundStyle(Theme.ink)
+                        }
+                        .buttonStyle(ManuscriptButtonStyle(
+                            fill: Theme.parchmentLight,
+                            pressedFill: Theme.pressedFill,
+                            inner: [FrameRule(gutter: 2, color: Theme.goldLeaf)],
+                            vPad: 12, hPad: 22
+                        ))
+                        .fixedSize()
+                        .padding(.bottom, 118)
                     }
-                    .padding(.bottom, 128)
                 }
             }
 
-            // Room-transition fade (also covers the HUD for a clean wipe).
+            // Room-transition fade (covers everything for a clean wipe).
             Color.black
                 .opacity(game.fade)
                 .ignoresSafeArea()
                 .allowsHitTesting(false)
 
-            // Dialogue over a dimmed world.
-            if let dilemma = game.activeDilemma, game.gameOver == nil {
-                Color.black.opacity(0.35).ignoresSafeArea()
+            // Dilemma over a light dim.
+            if let dilemma = game.activeDilemma, game.phase == .playing {
+                Theme.ink.opacity(0.28).ignoresSafeArea()
                 DialogueCard(dilemma: dilemma) { choice in
                     game.apply(choice.delta)
                     game.activeDilemma = nil
                 }
-                .transition(.scale.combined(with: .opacity))
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
 
-            // Loss screen.
-            if let info = game.gameOver {
+            // Title.
+            if game.phase == .title {
+                TitleView { withAnimation(.easeInOut(duration: 0.3)) { game.begin() } }
+                    .transition(.opacity)
+            }
+
+            // Game over.
+            if game.phase == .gameOver, let info = game.gameOver {
                 GameOverView(info: info) {
-                    game.restart()
+                    withAnimation(.easeInOut(duration: 0.3)) { game.restart() }
                 }
+                .transition(.opacity)
             }
         }
         .statusBarHidden(true)
         .animation(.easeInOut(duration: 0.18), value: game.nearby)
-        .animation(.easeInOut(duration: 0.2), value: game.activeDilemma?.id)
+        .animation(.easeOut(duration: 0.25), value: game.activeDilemma?.id)
         .animation(.easeInOut(duration: 0.22), value: game.fade)
-    }
-
-    private var banner: some View {
-        VStack(spacing: 2) {
-            Text(game.roomName)
-                .font(.system(.headline, design: .serif).weight(.bold))
-            Text(game.objective)
-                .font(.system(.caption, design: .serif))
-                .opacity(0.85)
-        }
-        .foregroundStyle(.white)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 7)
-        .background(.black.opacity(0.35), in: Capsule())
-        .multilineTextAlignment(.center)
+        .animation(.easeInOut(duration: 0.35), value: game.phase)
     }
 }

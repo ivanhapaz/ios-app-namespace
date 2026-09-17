@@ -42,10 +42,16 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
     private let camHeight: Float = 4.2
     private let camLerp: Float = 0.12
 
-    // MARK: Palette (muted Tudor tones)
-    private static let plaster = UIColor(red: 0.90, green: 0.86, blue: 0.78, alpha: 1)
-    private static let timber = UIColor(red: 0.34, green: 0.22, blue: 0.15, alpha: 1)
-    private static let chapelRoof = UIColor(red: 0.32, green: 0.16, blue: 0.16, alpha: 1)
+    // MARK: 3D material palette (from the design handoff)
+    private static let stoneWall = UIColor(hex: 0xA79C85)
+    private static let woodFloor = UIColor(hex: 0x8A6238)
+    private static let chapelStone = UIColor(hex: 0xCFC6AE)
+    private static let gardenGreen = UIColor(hex: 0x55703F)
+    private static let royalCrimson = UIColor(hex: 0xA6301F)
+    private static let goldTrim = UIColor(hex: 0xC9A227)
+    private static let towerStone = UIColor(hex: 0x6B2E3E)
+    // Walls share the stone-wall tone across rooms.
+    private static let plaster = UIColor(hex: 0xA79C85)
 
     /// A doorway resolved into scene geometry: a walkable trigger zone (in the
     /// XZ plane) and where to drop the player when they enter via this edge.
@@ -148,14 +154,20 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
         let floor = SCNBox(width: CGFloat(roomHalf * 2), height: 0.2,
                            length: CGFloat(roomHalf * 2), chamferRadius: 0)
         let mat = floor.firstMaterial
-        if def.isOutdoor {
+        switch def.id {
+        case .courtyard:
             mat?.diffuse.contents = Self.cobbleImage()
             mat?.diffuse.wrapS = .repeat
             mat?.diffuse.wrapT = .repeat
             mat?.diffuse.contentsTransform = SCNMatrix4MakeScale(8, 8, 0)
-        } else {
-            mat?.diffuse.contents = UIColor(red: def.floor.r, green: def.floor.g,
-                                            blue: def.floor.b, alpha: 1)
+        case .gardens:
+            mat?.diffuse.contents = Self.gardenGreen
+        case .chapel:
+            mat?.diffuse.contents = Self.chapelStone
+        case .tower:
+            mat?.diffuse.contents = Self.towerStone
+        case .greatHall, .kitchens, .privyChamber:
+            mat?.diffuse.contents = Self.woodFloor
         }
         let node = SCNNode(geometry: floor)
         node.position = SCNVector3(x: 0, y: -0.1, z: 0)

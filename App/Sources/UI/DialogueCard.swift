@@ -1,56 +1,65 @@
 import SwiftUI
 
-/// A parchment-styled choice card shown over the 3D world when you converse.
+/// The dilemma card: a manuscript panel with a vermilion drop cap, the setup in
+/// Iowan Old Style, a gold divider, and two roman-numeralled choice buttons.
 struct DialogueCard: View {
     let dilemma: Dilemma
     let onChoose: (Choice) -> Void
 
-    private let ink = Color(red: 0.20, green: 0.15, blue: 0.10)
+    private var dropCap: String { String(dilemma.setup.prefix(1)) }
+    private var bodyText: String { String(dilemma.setup.dropFirst()) }
 
     var body: some View {
-        VStack(spacing: 18) {
-            Text(dilemma.speaker)
-                .font(.system(.title3, design: .serif).weight(.bold))
-            Text(dilemma.setup)
-                .font(.system(.body, design: .serif))
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .top, spacing: 12) {
+                Text(dropCap)
+                    .font(Theme.display(30))
+                    .foregroundStyle(Theme.parchment)
+                    .frame(width: 56, height: 56)
+                    .background(Theme.vermilion)
+                    .overlay(Rectangle().strokeBorder(Theme.goldLeaf, lineWidth: 2))
+                Text(bodyText)
+                    .font(Theme.body(18))
+                    .foregroundStyle(Theme.ink)
+                    .lineSpacing(8)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
 
-            VStack(spacing: 12) {
-                choiceButton(dilemma.choiceA)
-                choiceButton(dilemma.choiceB)
+            DividerRule()
+                .padding(.top, 20)
+                .padding(.bottom, 16)
+
+            VStack(spacing: 9) {
+                choiceButton(dilemma.choiceA, numeral: "I", color: Theme.vermilion)
+                choiceButton(dilemma.choiceB, numeral: "II", color: Theme.lapis)
             }
         }
-        .padding(24)
-        .frame(maxWidth: 340)
-        .background(
-            RoundedRectangle(cornerRadius: 18)
-                .fill(Color(red: 0.96, green: 0.93, blue: 0.84))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 18)
-                .stroke(Color(red: 0.42, green: 0.30, blue: 0.18), lineWidth: 2)
-        )
-        .foregroundStyle(ink)
-        .shadow(radius: 24)
-        .padding(24)
+        .padding(.top, 22)
+        .padding(.horizontal, 20)
+        .padding(.bottom, 20)
+        .manuscriptPanel(inner: [FrameRule(gutter: 4, color: Theme.goldLeaf)])
+        .padding(.horizontal, 18)
     }
 
-    private func choiceButton(_ choice: Choice) -> some View {
+    private func choiceButton(_ choice: Choice, numeral: String, color: Color) -> some View {
         Button {
             onChoose(choice)
         } label: {
-            Text(choice.text)
-                .font(.system(.callout, design: .serif))
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-                .padding(.horizontal, 10)
-                .background(
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(Color(red: 0.52, green: 0.20, blue: 0.20))
-                )
-                .foregroundStyle(.white)
+            HStack(spacing: 10) {
+                Text(numeral)
+                    .font(Theme.display(10))
+                    .foregroundStyle(Theme.goldLeaf)
+                Text(choice.text)
+                    .font(Theme.body(16))
+                    .foregroundStyle(color)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
+        .buttonStyle(ManuscriptButtonStyle(
+            fill: Theme.parchmentLight,
+            pressedFill: Theme.pressedFill,
+            inner: [FrameRule(gutter: 2, color: Theme.goldLeaf.opacity(0.75))],
+            vPad: 13, hPad: 14
+        ))
     }
 }

@@ -1,30 +1,85 @@
 import SwiftUI
 
-/// The always-visible four-meter banner. Suspicion is shown in red because,
-/// unlike the others, a full bar is bad.
+/// The persistent four-meter HUD, top of screen. A 2×2 grid of chip + labelled
+/// bar. Suspicion is the danger meter: danger-coloured label, an extra outline,
+/// and a slow pulse once it climbs past 75.
 struct MetersHUD: View {
     let meters: Meters
 
     var body: some View {
-        HStack(spacing: 12) {
-            meter(icon: "crown.fill", value: meters.royalFavor, tint: Color(red: 0.85, green: 0.68, blue: 0.20))
-            meter(icon: "flame.fill", value: meters.piety, tint: Color(red: 0.90, green: 0.55, blue: 0.20))
-            meter(icon: "bag.fill", value: meters.wealth, tint: Color(red: 0.35, green: 0.62, blue: 0.35))
-            meter(icon: "eye.fill", value: meters.suspicion, tint: Color(red: 0.80, green: 0.25, blue: 0.25))
+        Grid(horizontalSpacing: 16, verticalSpacing: 9) {
+            GridRow {
+                cell("F", "FAVOR", meters.royalFavor,
+                     chip: Theme.vermilion, letter: Theme.parchment, bar: Theme.vermilion)
+                cell("P", "PIETY", meters.piety,
+                     chip: Theme.lapis, letter: Theme.parchment, bar: Theme.lapis)
+            }
+            GridRow {
+                cell("W", "WEALTH", meters.wealth,
+                     chip: Theme.goldLeaf, letter: Theme.ink, bar: Theme.goldLeaf)
+                cell("S", "SUSPICION", meters.suspicion,
+                     chip: Theme.ink, letter: Theme.parchment, bar: Theme.danger, isDanger: true)
+            }
         }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
         .padding(.horizontal, 14)
-        .padding(.vertical, 9)
-        .background(.black.opacity(0.38), in: Capsule())
+        .manuscriptPanel(radius: 4)
     }
 
-    private func meter(icon: String, value: Int, tint: Color) -> some View {
-        HStack(spacing: 5) {
-            Image(systemName: icon)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(tint)
+    private func cell(_ initial: String, _ label: String, _ value: Int,
+                      chip: Color, letter: Color, bar: Color, isDanger: Bool = false) -> some View {
+        HStack(spacing: 7) {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(chip)
+                .frame(width: 18, height: 18)
+                .overlay(
+                    Text(initial)
+                        .font(Theme.display(9))
+                        .foregroundStyle(letter)
+                )
+            VStack(alignment: .leading, spacing: 4) {
+                Text(label)
+                    .font(Theme.display(8))
+                    .tracking(0.6)
+                    .foregroundStyle(isDanger ? Theme.danger : Theme.mutedText)
+                MeterBar(value: value, fill: bar, isDanger: isDanger)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+}
+
+/// A 5pt bar whose fill animates to `value`%. The danger bar carries an extra
+/// outline and pulses when high.
+private struct MeterBar: View {
+    let value: Int
+    let fill: Color
+    var isDanger: Bool = false
+
+    @State private var pulse = false
+
+    var body: some View {
+        GeometryReader { geo in
             ZStack(alignment: .leading) {
-                Capsule().fill(Color.white.opacity(0.18)).frame(width: 42, height: 6)
-                Capsule().fill(tint).frame(width: 42 * CGFloat(value) / 100.0, height: 6)
+                Rectangle().fill(Theme.track)
+                Rectangle()
+                    .fill(fill)
+                    .frame(width: geo.size.width * CGFloat(min(max(value, 0), 100)) / 100)
+                    .animation(.easeOut(duration: 0.45), value: value)
+            }
+            .overlay(
+                Rectangle()
+                    .strokeBorder(Theme.danger, lineWidth: isDanger ? 1 : 0)
+                    .opacity(isDanger && value >= 75 ? (pulse ? 0.45 : 1.0) : 1.0)
+            )
+        }
+        .frame(height: 5)
+        .onAppear {
+            if isDanger {
+                withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
+                    pulse = true
+                }
             }
         }
     }
