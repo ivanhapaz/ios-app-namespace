@@ -24,6 +24,8 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
     private var currentRoom: RoomID = .courtyard
     private var previousRoom: RoomID?
     private let roomNode = SCNNode()        // all room-specific geometry lives here
+    private let ambientNode = SCNNode()     // per-room ambient (the lighting ladder)
+    private let sunNode = SCNNode()         // per-room directional light
     private var npcs: [(id: NPCID, node: SCNNode)] = []
     private var doorTriggers: [DoorTrigger] = []
     private var lastNearby: NPCID?
@@ -82,23 +84,19 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
         scene.fogStartDistance = 30
         scene.fogEndDistance = 90
 
-        // Lighting.
-        let ambient = SCNNode()
-        ambient.light = SCNLight()
-        ambient.light?.type = .ambient
-        ambient.light?.color = UIColor(white: 0.62, alpha: 1)
-        scene.rootNode.addChildNode(ambient)
+        // Lighting: base nodes configured once; intensities/tints per room
+        // are set by applyLighting(for:) — the "lighting ladder".
+        ambientNode.light = SCNLight()
+        ambientNode.light?.type = .ambient
+        scene.rootNode.addChildNode(ambientNode)
 
-        let sun = SCNNode()
-        sun.light = SCNLight()
-        sun.light?.type = .directional
-        sun.light?.color = UIColor(red: 1.0, green: 0.97, blue: 0.90, alpha: 1)
-        sun.light?.intensity = 1150
-        sun.light?.castsShadow = true
-        sun.light?.shadowMode = .deferred
-        sun.light?.shadowColor = UIColor(white: 0, alpha: 0.35)
-        sun.eulerAngles = SCNVector3(x: -Float.pi / 3, y: Float.pi / 4, z: 0)
-        scene.rootNode.addChildNode(sun)
+        sunNode.light = SCNLight()
+        sunNode.light?.type = .directional
+        sunNode.light?.castsShadow = true
+        sunNode.light?.shadowMode = .deferred
+        sunNode.light?.shadowColor = UIColor(white: 0, alpha: 0.35)
+        sunNode.eulerAngles = SCNVector3(x: -Float.pi / 3, y: Float.pi / 4, z: 0)
+        scene.rootNode.addChildNode(sunNode)
 
         scene.rootNode.addChildNode(roomNode)
 
@@ -135,6 +133,8 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
             buildWall(on: edge, doorway: def.doorways.first { $0.edge == edge })
         }
         buildRoomNPC(def)
+        roomNode.addChildNode(RoomDressing.dress(id))
+        applyLighting(for: id)
         kingNode = nil
         lastSlot = game?.slot
         addKingIfNeeded()
@@ -154,24 +154,56 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
         }
     }
 
+    /// The lighting ladder — each room is told apart by brightness/tint before
+    /// its props even register. Extra lights (fires, chandelier) live in the set
+    /// pieces; this sets the base ambient + directional per room.
+    private func applyLighting(for room: RoomID) {
+        let ambientTint: UIColor
+        let ambientIntensity: CGFloat
+        let sunIntensity: CGFloat
+        var sunTint = UIColor(red: 1.0, green: 0.97, blue: 0.90, alpha: 1)
+
+        switch room {
+        case .gardens:
+            ambientTint = UIColor(hex: 0xFFF6E0); ambientIntensity = 600; sunIntensity = 800
+        case .courtyard:
+            ambientTint = UIColor(hex: 0xFFF6E0); ambientIntensity = 500; sunIntensity = 750
+        case .kitchens:
+            ambientTint = UIColor(hex: 0x6E6353); ambientIntensity = 400; sunIntensity = 500
+        case .greatHall:
+            ambientTint = UIColor(hex: 0x6E6353); ambientIntensity = 300; sunIntensity = 700
+        case .privyChamber:
+            ambientTint = UIColor(hex: 0x6E6353); ambientIntensity = 300; sunIntensity = 600
+        case .chapel:
+            ambientTint = UIColor(hex: 0x6E6353); ambientIntensity = 200; sunIntensity = 500
+            sunTint = UIColor(hex: 0xC9D6E8)
+        case .tower:
+            ambientTint = UIColor(hex: 0x3A3630); ambientIntensity = 120; sunIntensity = 0
+        }
+
+        ambientNode.light?.color = ambientTint
+        ambientNode.light?.intensity = ambientIntensity
+        sunNode.light?.color = sunTint
+        sunNode.light?.intensity = sunIntensity
+    }
+
     private func buildFloor(_ def: RoomDefinition) {
         let floor = SCNBox(width: CGFloat(roomHalf * 2), height: 0.2,
                            length: CGFloat(roomHalf * 2), chamferRadius: 0)
         let mat = floor.firstMaterial
-        switch def.id {
-        case .courtyard:
-            mat?.diffuse.contents = Self.cobbleImage()
+        func tile(_ image: UIImage, repeats: Float) {
+            mat?.diffuse.contents = image
             mat?.diffuse.wrapS = .repeat
             mat?.diffuse.wrapT = .repeat
-            mat?.diffuse.contentsTransform = SCNMatrix4MakeScale(8, 8, 0)
-        case .gardens:
-            mat?.diffuse.contents = Self.gardenGreen
-        case .chapel:
-            mat?.diffuse.contents = Self.chapelStone
-        case .tower:
-            mat?.diffuse.contents = Self.towerStone
-        case .greatHall, .kitchens, .privyChamber:
-            mat?.diffuse.contents = Self.woodFloor
+            mat?.diffuse.contentsTransform = SCNMatrix4MakeScale(repeats, repeats, 0)
+        }
+        switch def.id {
+        case .courtyard: tile(FloorTextures.cobble(), repeats: 28)
+        case .chapel: tile(FloorTextures.flagstone(), repeats: 10)
+        case .kitchens: tile(FloorTextures.kitchenStone(), repeats: 10)
+        case .greatHall, .privyChamber: tile(FloorTextures.plank(), repeats: 14)
+        case .gardens: mat?.diffuse.contents = Palette.gardenGreen
+        case .tower: mat?.diffuse.contents = UIColor(hex: 0x6E675C)
         }
         let node = SCNNode(geometry: floor)
         node.position = SCNVector3(x: 0, y: -0.1, z: 0)
