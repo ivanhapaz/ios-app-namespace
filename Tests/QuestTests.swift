@@ -44,4 +44,28 @@ final class QuestTests: XCTestCase {
         XCTAssertGreaterThan(game.meters.wealth, beforeWealth)
         XCTAssertGreaterThan(game.meters.royalFavor, beforeFavor)
     }
+
+    func testDeliveringTheLetterArrestsTheLadyTwoDaysLater() {
+        let game = GameState()
+        game.add(.letter)
+
+        let delivery = DilemmaCatalog.dilemma(for: .cromwell, holdingLetter: true)
+        game.choose(delivery.choiceA)
+
+        XCTAssertNil(game.activeEvent, "The arrest should not fire immediately")
+        XCTAssertEqual(game.pendingEvents.count, 1, "The consequence should be queued")
+        XCTAssertEqual(game.meters.piety, 50)
+
+        // Let time pass until the consequence comes due.
+        var safety = 0
+        while game.activeEvent == nil && safety < 20 {
+            game.wait()
+            safety += 1
+        }
+
+        XCTAssertNotNil(game.activeEvent, "The arrest should fire once its day arrives")
+        XCTAssertGreaterThanOrEqual(game.day, 3, "It should be ~two days after delivery")
+        XCTAssertEqual(game.meters.piety, 40, "Selling out the lady costs 10 Piety")
+        XCTAssertTrue(game.pendingEvents.isEmpty)
+    }
 }

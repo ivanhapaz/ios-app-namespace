@@ -7,6 +7,8 @@ struct Choice {
     let delta: MeterDelta
     var grant: Item? = nil
     var consume: Item? = nil
+    /// A delayed consequence this choice sets in motion (fires days later).
+    var schedules: EventTemplate? = nil
 }
 
 /// A two-choice dilemma presented when you approach an NPC.
@@ -29,7 +31,13 @@ enum DilemmaCatalog {
                 setup: "That letter you carry — the one that ruins Lady Rochford. Hand it to me.",
                 choiceA: Choice(text: "Deliver the Boleyn letter.",
                                 delta: MeterDelta(royalFavor: 20, wealth: 20),
-                                consume: .letter),
+                                consume: .letter,
+                                schedules: EventTemplate(
+                                    delayDays: 2,
+                                    title: "A Reckoning",
+                                    body: "The lady-in-waiting has been dragged to the Tower — and everyone knows whose letter sealed it. The guilt sits ill with you.",
+                                    effect: MeterDelta(piety: -10)
+                                )),
                 choiceB: Choice(text: "Keep it to yourself.",
                                 delta: MeterDelta(suspicion: 5))
             )
