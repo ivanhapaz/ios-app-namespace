@@ -23,9 +23,14 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
     // MARK: Tunables
     private let speed: Float = 6.0                       // metres / second
     private let bounds: Float = 22                       // courtyard half-extent (movement clamp)
-    private let camDistance: Float = 8.5                 // how far behind the player the camera sits
-    private let camHeight: Float = 4.8                   // camera height (lower = more over-the-shoulder)
+    private let camDistance: Float = 8.0                 // how far behind the player the camera sits
+    private let camHeight: Float = 4.2                   // camera height (lower = more over-the-shoulder)
     private let camLerp: Float = 0.12                    // camera smoothing (0..1 per frame)
+
+    // Shared placeholder palette (muted Tudor tones).
+    private static let plaster = UIColor(red: 0.90, green: 0.86, blue: 0.78, alpha: 1)
+    private static let timber = UIColor(red: 0.34, green: 0.22, blue: 0.15, alpha: 1)
+    private static let chapelRoof = UIColor(red: 0.32, green: 0.16, blue: 0.16, alpha: 1)
 
     init(input: MovementInput) {
         self.input = input
@@ -36,11 +41,11 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
     // MARK: World construction
 
     private func buildWorld() {
-        scene.background.contents = UIColor(red: 0.53, green: 0.68, blue: 0.82, alpha: 1) // sky
+        scene.background.contents = Self.skyImage()
         // Distance fog to fake atmospheric depth for free.
-        scene.fogColor = UIColor(red: 0.72, green: 0.80, blue: 0.87, alpha: 1)
-        scene.fogStartDistance = 35
-        scene.fogEndDistance = 95
+        scene.fogColor = UIColor(red: 0.82, green: 0.86, blue: 0.90, alpha: 1)
+        scene.fogStartDistance = 40
+        scene.fogEndDistance = 115
 
         buildGround()
         buildLighting()
@@ -54,7 +59,11 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
     private func buildGround() {
         let floor = SCNFloor()
         floor.reflectivity = 0
-        floor.firstMaterial?.diffuse.contents = UIColor(red: 0.56, green: 0.55, blue: 0.50, alpha: 1) // cobble
+        let mat = floor.firstMaterial
+        mat?.diffuse.contents = Self.cobbleImage()
+        mat?.diffuse.wrapS = .repeat
+        mat?.diffuse.wrapT = .repeat
+        mat?.diffuse.contentsTransform = SCNMatrix4MakeScale(24, 24, 0) // tile the cobbles
         let node = SCNNode(geometry: floor)
         scene.rootNode.addChildNode(node)
     }
@@ -63,13 +72,14 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
         let ambient = SCNNode()
         ambient.light = SCNLight()
         ambient.light?.type = .ambient
-        ambient.light?.color = UIColor(white: 0.55, alpha: 1)
+        ambient.light?.color = UIColor(white: 0.58, alpha: 1)
         scene.rootNode.addChildNode(ambient)
 
         let sun = SCNNode()
         sun.light = SCNLight()
         sun.light?.type = .directional
-        sun.light?.color = UIColor(white: 0.95, alpha: 1)
+        sun.light?.color = UIColor(red: 1.0, green: 0.97, blue: 0.90, alpha: 1) // warm afternoon
+        sun.light?.intensity = 1150
         sun.light?.castsShadow = true
         sun.light?.shadowMode = .deferred
         sun.light?.shadowColor = UIColor(white: 0, alpha: 0.35)
@@ -94,8 +104,8 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
 
     private func addBuilding(at pos: SCNVector3, size: SCNVector3, isChapel: Bool = false) {
         let wall = SCNBox(width: CGFloat(size.x), height: CGFloat(size.y),
-                          length: CGFloat(size.z), chamferRadius: 0.15)
-        wall.firstMaterial?.diffuse.contents = UIColor(red: 0.90, green: 0.86, blue: 0.78, alpha: 1) // plaster
+                          length: CGFloat(size.z), chamferRadius: 0.12)
+        wall.firstMaterial?.diffuse.contents = Self.plaster
         let node = SCNNode(geometry: wall)
         node.position = SCNVector3(x: pos.x, y: size.y / 2, z: pos.z)
         node.castsShadow = true
@@ -103,21 +113,54 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
         // Timber-dark roof, slightly overhanging.
         let roof = SCNBox(width: CGFloat(size.x * 1.12), height: 0.6,
                           length: CGFloat(size.z * 1.12), chamferRadius: 0.1)
-        roof.firstMaterial?.diffuse.contents = isChapel
-            ? UIColor(red: 0.30, green: 0.16, blue: 0.16, alpha: 1)   // deep chapel red-brown
-            : UIColor(red: 0.34, green: 0.22, blue: 0.15, alpha: 1)   // timber
+        roof.firstMaterial?.diffuse.contents = isChapel ? Self.chapelRoof : Self.timber
         let roofNode = SCNNode(geometry: roof)
         roofNode.position = SCNVector3(x: 0, y: size.y / 2 + 0.3, z: 0)
         node.addChildNode(roofNode)
 
-        // A single dark doorway on the courtyard-facing side (+Z), for flavour.
+        // Half-timber beams on the courtyard-facing (+Z) face: two uprights and
+        // a mid-rail. Classic Tudor look, made of thin dark boxes.
+        let faceZ = size.z / 2 + 0.04
+        addBeam(to: node, size: SCNVector3(x: 0.35, y: size.y, z: 0.1),
+                at: SCNVector3(x: -size.x / 2 + 0.6, y: 0, z: faceZ))
+        addBeam(to: node, size: SCNVector3(x: 0.35, y: size.y, z: 0.1),
+                at: SCNVector3(x: size.x / 2 - 0.6, y: 0, z: faceZ))
+        addBeam(to: node, size: SCNVector3(x: size.x, y: 0.35, z: 0.1),
+                at: SCNVector3(x: 0, y: size.y * 0.12, z: faceZ))
+
+        // A single dark doorway on the +Z side.
         let door = SCNBox(width: 1.6, height: 2.6, length: 0.2, chamferRadius: 0.05)
         door.firstMaterial?.diffuse.contents = UIColor(red: 0.20, green: 0.13, blue: 0.08, alpha: 1)
         let doorNode = SCNNode(geometry: door)
-        doorNode.position = SCNVector3(x: 0, y: 1.3 - size.y / 2, z: size.z / 2 + 0.05)
+        doorNode.position = SCNVector3(x: 0, y: 1.3 - size.y / 2, z: faceZ + 0.05)
         node.addChildNode(doorNode)
 
+        if isChapel {
+            // Bell tower + spire rising above the chapel to read as a church.
+            let tower = SCNBox(width: 2.4, height: 4.5, length: 2.4, chamferRadius: 0.1)
+            tower.firstMaterial?.diffuse.contents = Self.plaster
+            let towerNode = SCNNode(geometry: tower)
+            towerNode.position = SCNVector3(x: 0, y: size.y / 2 + 2.4, z: 0)
+            towerNode.castsShadow = true
+            node.addChildNode(towerNode)
+
+            let spire = SCNCone(topRadius: 0, bottomRadius: 1.8, height: 3.2)
+            spire.firstMaterial?.diffuse.contents = Self.chapelRoof
+            let spireNode = SCNNode(geometry: spire)
+            spireNode.position = SCNVector3(x: 0, y: 3.8, z: 0)
+            towerNode.addChildNode(spireNode)
+        }
+
         scene.rootNode.addChildNode(node)
+    }
+
+    private func addBeam(to parent: SCNNode, size: SCNVector3, at position: SCNVector3) {
+        let beam = SCNBox(width: CGFloat(size.x), height: CGFloat(size.y),
+                          length: CGFloat(size.z), chamferRadius: 0.02)
+        beam.firstMaterial?.diffuse.contents = Self.timber
+        let n = SCNNode(geometry: beam)
+        n.position = position
+        parent.addChildNode(n)
     }
 
     private func buildTrees() {
@@ -249,5 +292,53 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
         return SCNVector3(x: a.x + (b.x - a.x) * t,
                           y: a.y + (b.y - a.y) * t,
                           z: a.z + (b.z - a.z) * t)
+    }
+
+    // MARK: Procedural textures (so we ship no image files)
+
+    /// Vertical sky gradient used as the scene background.
+    private static func skyImage() -> UIImage {
+        let size = CGSize(width: 4, height: 256)
+        let renderer = UIGraphicsImageRenderer(size: size)
+        return renderer.image { ctx in
+            let colors = [
+                UIColor(red: 0.45, green: 0.62, blue: 0.82, alpha: 1).cgColor, // zenith blue
+                UIColor(red: 0.86, green: 0.90, blue: 0.94, alpha: 1).cgColor  // pale horizon
+            ] as CFArray
+            let space = CGColorSpaceCreateDeviceRGB()
+            if let gradient = CGGradient(colorsSpace: space, colors: colors, locations: [0, 1]) {
+                ctx.cgContext.drawLinearGradient(
+                    gradient,
+                    start: CGPoint(x: 0, y: 0),
+                    end: CGPoint(x: 0, y: size.height),
+                    options: []
+                )
+            }
+        }
+    }
+
+    /// A small running-bond cobblestone tile, repeated across the floor.
+    private static func cobbleImage() -> UIImage {
+        let dimension: CGFloat = 256
+        let size = CGSize(width: dimension, height: dimension)
+        let renderer = UIGraphicsImageRenderer(size: size)
+        return renderer.image { ctx in
+            let c = ctx.cgContext
+            c.setFillColor(UIColor(red: 0.54, green: 0.52, blue: 0.48, alpha: 1).cgColor)
+            c.fill(CGRect(origin: .zero, size: size))
+
+            c.setStrokeColor(UIColor(red: 0.38, green: 0.37, blue: 0.34, alpha: 1).cgColor)
+            c.setLineWidth(3)
+            let tile = dimension / 4
+            for row in 0..<4 {
+                let y = CGFloat(row) * tile
+                let offset = (row % 2 == 0) ? 0 : tile / 2
+                var x = offset - tile
+                while x < dimension {
+                    c.stroke(CGRect(x: x, y: y, width: tile, height: tile))
+                    x += tile
+                }
+            }
+        }
     }
 }
