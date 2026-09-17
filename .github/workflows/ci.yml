@@ -11,7 +11,51 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Confirm runner and Xcode
         run: |
           xcodebuild -version
           uname -m
+          sw_vers || true
+
+      - name: Install XcodeGen
+        run: |
+          if ! command -v xcodegen >/dev/null 2>&1; then
+            brew install xcodegen
+          fi
+          xcodegen --version
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Select iOS Simulator
+        id: sim
+        run: |
+          # Pick an available iPhone simulator by name so we don't hard-code one
+          # that a given Xcode version might not ship.
+          DEVICE=$(xcrun simctl list devices available -j | python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)['devices']
+          phones = [d for runtime in data.values() for d in runtime if 'iPhone' in d['name']]
+          print(phones[-1]['name'] if phones else 'iPhone 15')
+          ")
+          echo "device=$DEVICE" >> "$GITHUB_OUTPUT"
+          echo "Selected simulator: $DEVICE"
+
+      - name: Build
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project TudorCourt.xcodeproj \
+            -scheme TudorCourt \
+            -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.device }}" \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Test
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project TudorCourt.xcodeproj \
+            -scheme TudorCourt \
+            -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.device }}" \
+            CODE_SIGNING_ALLOWED=NO
