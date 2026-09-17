@@ -34,9 +34,9 @@ struct GameContainerView: View {
                 // pass the time (which moves the King along his schedule).
                 VStack {
                     Spacer()
-                    if let npc = game.nearby, game.activeDilemma == nil {
+                    if let npc = game.nearby, game.activeDilemma == nil, game.activeEvent == nil {
                         Button {
-                            game.activeDilemma = DilemmaCatalog.dilemma(for: npc, holdingLetter: game.has(.letter))
+                            game.activeDilemma = DilemmaCatalog.dilemma(for: npc, holding: Set(game.inventory))
                         } label: {
                             Text("Approach")
                                 .font(Theme.body(16))
@@ -50,7 +50,7 @@ struct GameContainerView: View {
                         ))
                         .fixedSize()
                         .padding(.bottom, 118)
-                    } else if game.activeDilemma == nil {
+                    } else if game.activeDilemma == nil, game.activeEvent == nil {
                         Button {
                             withAnimation { game.wait() }
                         } label: {
@@ -76,8 +76,15 @@ struct GameContainerView: View {
                 .ignoresSafeArea()
                 .allowsHitTesting(false)
 
+            // A delayed consequence has come due (shown over a light dim).
+            if let event = game.activeEvent, game.phase == .playing {
+                Color.black.opacity(0.35).ignoresSafeArea()
+                EventCard(event: event) { game.dismissEvent() }
+                    .transition(.opacity.combined(with: .scale(scale: 0.96)))
+            }
+
             // Dilemma over a light dim.
-            if let dilemma = game.activeDilemma, game.phase == .playing {
+            if let dilemma = game.activeDilemma, game.activeEvent == nil, game.phase == .playing {
                 Theme.ink.opacity(0.28).ignoresSafeArea()
                 DialogueCard(dilemma: dilemma) { choice in
                     game.choose(choice)
@@ -103,6 +110,7 @@ struct GameContainerView: View {
         .statusBarHidden(true)
         .animation(.easeInOut(duration: 0.18), value: game.nearby)
         .animation(.easeOut(duration: 0.25), value: game.activeDilemma?.id)
+        .animation(.easeOut(duration: 0.25), value: game.activeEvent?.id)
         .animation(.easeInOut(duration: 0.22), value: game.fade)
         .animation(.easeInOut(duration: 0.35), value: game.phase)
     }
