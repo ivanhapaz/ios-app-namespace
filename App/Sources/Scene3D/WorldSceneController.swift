@@ -130,6 +130,9 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
         let def = RoomCatalog.room(id)
         buildFloor(def)
         for edge in [Edge.north, .south, .east, .west] {
+            // Outdoor rooms open to the sky at the north — facades/perimeter
+            // (added by RoomDressing) form the backdrop instead of a wall.
+            if edge == .north && def.isOutdoor { continue }
             buildWall(on: edge, doorway: def.doorways.first { $0.edge == edge })
         }
         buildRoomNPC(def)

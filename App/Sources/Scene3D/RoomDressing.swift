@@ -118,9 +118,9 @@ enum RoomDressing {
         root.addChildNode(place(banquetTable(), -4.5, 0, -5.0, yDeg: 90))
         root.addChildNode(place(hallBench(), -5.65, 0, -5.0, yDeg: 90))
         root.addChildNode(place(hallBench(), -3.35, 0, -5.0, yDeg: 90))
-        root.addChildNode(place(banner(CharacterKit.Faction.boleyn.field), -13.5, 5.3, -8, yDeg: 90))
-        root.addChildNode(place(banner(CharacterKit.Faction.seymour.field), -13.5, 5.3, 0, yDeg: 90))
-        root.addChildNode(place(banner(CharacterKit.Faction.oldCatholic.field), 13.5, 5.3, -4, yDeg: -90))
+        root.addChildNode(place(banner(.boleyn), -13.5, 5.3, -8, yDeg: 90))
+        root.addChildNode(place(banner(.seymour), -13.5, 5.3, 0, yDeg: 90))
+        root.addChildNode(place(banner(.oldCatholic), 13.5, 5.3, -4, yDeg: -90))
         root.addChildNode(place(chandelier(), 0, 4.6, -5.0))
     }
 
@@ -157,11 +157,32 @@ enum RoomDressing {
         return n
     }
 
-    private static func banner(_ field: UIColor) -> SCNNode {
+    private static func banner(_ faction: CharacterKit.Faction) -> SCNNode {
         let n = SCNNode()
         n.addChildNode(Prim.cyl(0.05, 2.0, Palette.timberDark, at: Prim.v(0, 0, 0), euler: Prim.deg(0, 0, 90)))
-        n.addChildNode(Prim.plane(1.6, 3.4, field, at: Prim.v(0, -1.75, 0.06), doubleSided: true))
-        n.addChildNode(Prim.plane(0.7, 0.85, Palette.chapelStone, at: Prim.v(0, -1.55, 0.08), doubleSided: true))
+        n.addChildNode(Prim.plane(1.6, 3.4, faction.field, at: Prim.v(0, -1.75, 0.06), doubleSided: true))
+        let device = chargeDevice(faction)
+        device.position = Prim.v(0, -1.55, 0.09)
+        n.addChildNode(device)
+        return n
+    }
+
+    /// The heraldic charge for a faction, built from primitives (no texture):
+    /// Boleyn chevron (ermine), Seymour cross (gold), Old-Catholic roundel (stone).
+    private static func chargeDevice(_ faction: CharacterKit.Faction) -> SCNNode {
+        let n = SCNNode()
+        switch faction {
+        case .boleyn:
+            let metal = Palette.ermine
+            n.addChildNode(Prim.box(0.44, 0.10, 0.02, metal, at: Prim.v(-0.16, 0, 0), euler: Prim.deg(0, 0, 38)))
+            n.addChildNode(Prim.box(0.44, 0.10, 0.02, metal, at: Prim.v(0.16, 0, 0), euler: Prim.deg(0, 0, -38)))
+        case .seymour:
+            let metal = Palette.goldTrim
+            n.addChildNode(Prim.box(0.10, 0.62, 0.02, metal, at: Prim.v(0, 0, 0)))
+            n.addChildNode(Prim.box(0.44, 0.10, 0.02, metal, at: Prim.v(0, 0.10, 0)))
+        case .oldCatholic:
+            n.addChildNode(Prim.cyl(0.19, 0.02, Palette.chapelStone, at: Prim.v(0, 0, 0), euler: Prim.deg(90, 0, 0)))
+        }
         return n
     }
 
@@ -183,6 +204,9 @@ enum RoomDressing {
     // MARK: Courtyard
 
     private static func dressCourtyard(_ root: SCNNode) {
+        // North backdrop: two facades (their decorated fronts face the player).
+        root.addChildNode(place(ExteriorKit.facade(), -4.0, 0, -15.5, yDeg: 180))
+        root.addChildNode(place(ExteriorKit.facade(withDoor: true), 4.0, 0, -15.5, yDeg: 180))
         root.addChildNode(place(gateArch(), 0, 0, 13.4))
         root.addChildNode(place(well(), 0, 0, -2.0))
         root.addChildNode(place(marketStall(), -9.5, 0, 4.0, yDeg: 22))
@@ -403,6 +427,7 @@ enum RoomDressing {
                 root.addChildNode(place(topiaryCone(), tx, 0, tz))
             }
         }
+        root.addChildNode(place(ExteriorKit.brickPerimeter(length: 27), 0, 0, -13.8))
         root.addChildNode(place(gardenBench(), 11.6, 0, 8.0, yDeg: -55))
     }
 
