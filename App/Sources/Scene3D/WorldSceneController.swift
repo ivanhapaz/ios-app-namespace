@@ -23,7 +23,8 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
     // MARK: Tunables
     private let speed: Float = 6.0                       // metres / second
     private let bounds: Float = 22                       // courtyard half-extent (movement clamp)
-    private let camOffset = SCNVector3(x: 0, y: 9, z: 13) // third-person camera offset
+    private let camDistance: Float = 8.5                 // how far behind the player the camera sits
+    private let camHeight: Float = 4.8                   // camera height (lower = more over-the-shoulder)
     private let camLerp: Float = 0.12                    // camera smoothing (0..1 per frame)
 
     init(input: MovementInput) {
@@ -153,7 +154,7 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
     private func buildPlayer() {
         let body = Self.makeCharacter(tunic: UIColor(red: 0.20, green: 0.24, blue: 0.42, alpha: 1)) // courtier blue
         player.addChildNode(body)
-        player.position = SCNVector3(x: 0, y: 0, z: 8)
+        player.position = SCNVector3(x: 0, y: 0, z: 12)
         scene.rootNode.addChildNode(player)
 
         lookTarget.position = SCNVector3(x: 0, y: 1.4, z: 0)
@@ -163,11 +164,9 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
     private func buildCamera() {
         let cam = SCNCamera()
         cam.zFar = 250
-        cam.fieldOfView = 55
+        cam.fieldOfView = 60
         cameraNode.camera = cam
-        cameraNode.position = SCNVector3(x: player.position.x + camOffset.x,
-                                         y: camOffset.y,
-                                         z: player.position.z + camOffset.z)
+        cameraNode.position = cameraTarget()
         let look = SCNLookAtConstraint(target: lookTarget)
         look.isGimbalLockEnabled = true
         cameraNode.constraints = [look]
@@ -225,11 +224,19 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
             player.eulerAngles = SCNVector3(x: 0, y: atan2(-vx, -vz), z: 0)
         }
 
-        // Glide the camera toward its offset from the player (fixed viewing angle).
-        let desired = SCNVector3(x: player.position.x + camOffset.x,
-                                 y: camOffset.y,
-                                 z: player.position.z + camOffset.z)
-        cameraNode.position = lerp(cameraNode.position, desired, camLerp)
+        // Glide the camera to sit behind the player, based on their facing, so
+        // it swings around as they turn (third-person follow).
+        cameraNode.position = lerp(cameraNode.position, cameraTarget(), camLerp)
+    }
+
+    /// Desired camera position: `camDistance` behind the player's current facing
+    /// and `camHeight` up. Behind = +(sin yaw, cos yaw) since the player's
+    /// forward is the -Z axis rotated by yaw.
+    private func cameraTarget() -> SCNVector3 {
+        let yaw = player.eulerAngles.y
+        return SCNVector3(x: player.position.x + sin(yaw) * camDistance,
+                          y: camHeight,
+                          z: player.position.z + cos(yaw) * camDistance)
     }
 
     // MARK: Small math helpers
