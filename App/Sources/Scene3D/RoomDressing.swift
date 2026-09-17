@@ -12,7 +12,11 @@ enum RoomDressing {
         switch room {
         case .chapel: dressChapel(root)
         case .greatHall: dressGreatHall(root)
-        default: break
+        case .courtyard: dressCourtyard(root)
+        case .privyChamber: dressPrivy(root)
+        case .kitchens: dressKitchens(root)
+        case .gardens: dressGardens(root)
+        case .tower: dressTower(root)
         }
         return root
     }
@@ -173,6 +177,339 @@ enum RoomDressing {
             n.addChildNode(emit(Prim.cone(0, 0.04, 0.12, Palette.flame, at: Prim.v(x, 0.36, z)), Palette.flame))
         }
         n.addChildNode(Prim.omni(intensity: 280, color: Palette.flame, distance: 9, at: Prim.v(0, 0, 0)))
+        return n
+    }
+
+    // MARK: Courtyard
+
+    private static func dressCourtyard(_ root: SCNNode) {
+        root.addChildNode(place(gateArch(), 0, 0, 13.4))
+        root.addChildNode(place(well(), 0, 0, -2.0))
+        root.addChildNode(place(marketStall(), -9.5, 0, 4.0, yDeg: 22))
+        root.addChildNode(place(courtyardTree(), 11.0, 0, -10.5))
+        root.addChildNode(place(barrelStack(), -12.4, 0, -9.0, yDeg: -15))
+    }
+
+    private static func well() -> SCNNode {
+        let n = SCNNode()
+        n.addChildNode(Prim.tube(0.75, 0.95, 1.05, Palette.stoneWall, at: Prim.v(0, 0.52, 0)))
+        n.addChildNode(Prim.cyl(0.75, 0.04, Palette.waterBlue, at: Prim.v(0, 0.35, 0)))
+        n.addChildNode(Prim.box(0.12, 1.9, 0.12, Palette.timberDark, at: Prim.v(-0.85, 1.55, 0)))
+        n.addChildNode(Prim.box(0.12, 1.9, 0.12, Palette.timberDark, at: Prim.v(0.85, 1.55, 0)))
+        n.addChildNode(Prim.pyramid(2.4, 0.7, 1.6, Palette.slateRoof, at: Prim.v(0, 2.50, 0)))
+        n.addChildNode(Prim.cyl(0.09, 1.55, Palette.timberDark, at: Prim.v(0, 2.05, 0), euler: Prim.deg(0, 0, 90)))
+        n.addChildNode(Prim.cyl(0.16, 0.24, Palette.timberDark, at: Prim.v(0, 1.55, 0)))
+        return n
+    }
+
+    private static func gateArch() -> SCNNode {
+        let n = SCNNode()
+        n.addChildNode(Prim.box(0.9, 4.4, 1.0, Palette.chapelStone, at: Prim.v(-2.5, 2.2, 0)))
+        n.addChildNode(Prim.box(0.9, 4.4, 1.0, Palette.chapelStone, at: Prim.v(2.5, 2.2, 0)))
+        n.addChildNode(Prim.box(5.9, 0.8, 1.0, Palette.chapelStone, at: Prim.v(0, 4.8, 0)))
+        n.addChildNode(Prim.tube(2.05, 2.55, 1.0, Palette.chapelStone, at: Prim.v(0, 4.4, 0), euler: Prim.deg(90, 0, 0)))
+        for i in 0..<5 {
+            let x = -1.8 + Float(i) * 0.9
+            n.addChildNode(Prim.box(0.07, 1.1, 0.07, Palette.steelGrey, at: Prim.v(x, 5.1, 0)))
+        }
+        n.addChildNode(Prim.box(2.2, 0.55, 0.12, Palette.royalCrimson, at: Prim.v(0, 5.55, -0.52)))
+        return n
+    }
+
+    private static func marketStall() -> SCNNode {
+        let n = SCNNode()
+        n.addChildNode(Prim.box(2.6, 0.10, 1.0, Palette.woodFloor, at: Prim.v(0, 0.85, 0)))
+        for sx in [Float(-1.15), 1.15] {
+            for sz in [Float(-0.40), 0.40] {
+                n.addChildNode(Prim.box(0.12, 0.85, 0.12, Palette.timberDark, at: Prim.v(sx, 0.42, sz)))
+            }
+        }
+        n.addChildNode(Prim.box(0.10, 2.4, 0.10, Palette.timberDark, at: Prim.v(-1.25, 1.20, -0.45)))
+        n.addChildNode(Prim.box(0.10, 2.4, 0.10, Palette.timberDark, at: Prim.v(1.25, 1.20, -0.45)))
+        n.addChildNode(Prim.box(2.9, 0.08, 1.5, Palette.royalCrimson, at: Prim.v(0, 2.35, 0.10), euler: Prim.deg(-14, 0, 0)))
+        let goods = [Palette.strawGold, Palette.gardenGreen, Palette.strawGold]
+        for (i, color) in goods.enumerated() {
+            n.addChildNode(Prim.sphere(0.14, color, at: Prim.v(-0.6 + Float(i) * 0.6, 0.97, 0)))
+        }
+        return n
+    }
+
+    private static func courtyardTree() -> SCNNode {
+        let n = SCNNode()
+        n.addChildNode(Prim.cyl(0.22, 2.2, Palette.timberDark, at: Prim.v(0, 1.10, 0)))
+        n.addChildNode(Prim.sphere(1.35, Palette.gardenGreen, at: Prim.v(0, 2.60, 0)))
+        n.addChildNode(Prim.sphere(0.95, Palette.foliageDark, at: Prim.v(0.35, 3.55, -0.20)))
+        n.addChildNode(Prim.tube(0.85, 1.05, 0.35, Palette.stoneWall, at: Prim.v(0, 0.17, 0)))
+        return n
+    }
+
+    private static func barrelStack() -> SCNNode {
+        let n = SCNNode()
+        n.addChildNode(Prim.cyl(0.38, 0.95, Palette.timberDark, at: Prim.v(-0.42, 0.48, 0)))
+        n.addChildNode(Prim.cyl(0.38, 0.95, Palette.timberDark, at: Prim.v(0.42, 0.48, 0.10)))
+        n.addChildNode(Prim.cyl(0.38, 0.95, Palette.timberDark, at: Prim.v(0, 1.05, -0.30), euler: Prim.deg(0, 0, 90)))
+        n.addChildNode(Prim.torus(0.39, 0.035, Palette.steelGrey, at: Prim.v(-0.42, 0.24, 0)))
+        n.addChildNode(Prim.torus(0.39, 0.035, Palette.steelGrey, at: Prim.v(-0.42, 0.72, 0)))
+        n.addChildNode(Prim.torus(0.39, 0.035, Palette.steelGrey, at: Prim.v(0.42, 0.24, 0.10)))
+        n.addChildNode(Prim.torus(0.39, 0.035, Palette.steelGrey, at: Prim.v(0.42, 0.72, 0.10)))
+        return n
+    }
+
+    // MARK: Privy Chamber
+
+    private static func dressPrivy(_ root: SCNNode) {
+        root.addChildNode(place(canopiedBed(), -8.0, 0, -11.4))
+        root.addChildNode(place(fireplace(), 13.3, 0, -5.0, yDeg: -90))
+        root.addChildNode(place(writingDesk(), 9.0, 0, 3.5, yDeg: -40))
+        root.addChildNode(place(goldPanel(), -13.5, 0, -2, yDeg: 90))
+        root.addChildNode(place(goldPanel(), -13.5, 0, 3, yDeg: 90))
+        root.addChildNode(place(goldPanel(), 6.0, 0, -13.5))
+    }
+
+    private static func canopiedBed() -> SCNNode {
+        let n = SCNNode()
+        n.addChildNode(Prim.box(2.4, 0.45, 3.0, Palette.timberDark, at: Prim.v(0, 0.22, 0)))
+        n.addChildNode(Prim.box(2.3, 0.35, 2.9, Palette.ermine, at: Prim.v(0, 0.62, 0)))
+        n.addChildNode(Prim.box(2.42, 0.20, 2.3, Palette.royalCrimson, at: Prim.v(0, 0.70, 0.25)))
+        for px in [Float(-1.10), 1.10] {
+            for pz in [Float(-1.40), 1.40] {
+                n.addChildNode(Prim.cyl(0.09, 3.2, Palette.goldTrim, at: Prim.v(px, 1.60, pz)))
+                n.addChildNode(Prim.sphere(0.11, Palette.goldTrim, at: Prim.v(px, 3.42, pz)))
+            }
+        }
+        n.addChildNode(Prim.box(2.5, 0.16, 3.1, Palette.goldTrim, at: Prim.v(0, 3.28, 0)))
+        n.addChildNode(Prim.plane(2.2, 1.9, Palette.royalCrimson, at: Prim.v(0, 1.90, -1.44), doubleSided: true))
+        return n
+    }
+
+    private static func writingDesk() -> SCNNode {
+        let n = SCNNode()
+        n.addChildNode(Prim.box(1.8, 0.10, 0.85, Palette.woodFloor, at: Prim.v(0, 0.80, 0)))
+        for lx in [Float(-0.80), 0.80] {
+            for lz in [Float(-0.34), 0.34] {
+                n.addChildNode(Prim.box(0.11, 0.80, 0.11, Palette.timberDark, at: Prim.v(lx, 0.40, lz)))
+            }
+        }
+        n.addChildNode(Prim.box(0.34, 0.03, 0.44, Palette.parchment, at: Prim.v(-0.42, 0.87, 0.04), euler: Prim.deg(0, 12, 0)))
+        n.addChildNode(Prim.box(0.40, 0.10, 0.30, Palette.inkBlack, at: Prim.v(0.45, 0.90, -0.06)))
+        n.addChildNode(Prim.cyl(0.06, 0.11, Palette.inkBlack, at: Prim.v(0.10, 0.91, 0.18)))
+        n.addChildNode(Prim.cone(0, 0.02, 0.34, Palette.ermine, at: Prim.v(0.10, 1.08, 0.18), euler: Prim.deg(0, 0, 18)))
+        n.addChildNode(Prim.cyl(0.26, 0.50, Palette.timberDark, at: Prim.v(0, 0.25, 0.75)))
+        return n
+    }
+
+    private static func fireplace() -> SCNNode {
+        let n = SCNNode()
+        n.addChildNode(Prim.box(0.55, 1.85, 0.65, Palette.chapelStone, at: Prim.v(-1.35, 0.92, 0)))
+        n.addChildNode(Prim.box(0.55, 1.85, 0.65, Palette.chapelStone, at: Prim.v(1.35, 0.92, 0)))
+        n.addChildNode(Prim.box(3.25, 0.45, 0.65, Palette.chapelStone, at: Prim.v(0, 2.07, 0)))
+        n.addChildNode(Prim.pyramid(3.25, 1.5, 0.65, Palette.chapelStone, at: Prim.v(0, 2.30, 0)))
+        n.addChildNode(Prim.box(2.15, 1.85, 0.30, Palette.inkBlack, at: Prim.v(0, 0.92, -0.20)))
+        for lx in [Float(-0.3), 0, 0.3] {
+            n.addChildNode(Prim.cyl(0.11, 1.1, Palette.timberDark, at: Prim.v(lx, 0.13, -0.05), euler: Prim.deg(0, 0, 90)))
+        }
+        n.addChildNode(emit(Prim.cone(0, 0.45, 0.85, Palette.flame, at: Prim.v(0, 0.45, 0)), Palette.flame, 0.7))
+        n.addChildNode(Prim.box(2.2, 0.55, 0.10, Palette.goldTrim, at: Prim.v(0, 3.15, -0.22)))
+        n.addChildNode(Prim.omni(intensity: 340, color: Palette.flame, distance: 8, at: Prim.v(0, 0.6, 0.3)))
+        return n
+    }
+
+    private static func goldPanel() -> SCNNode {
+        let n = SCNNode()
+        n.addChildNode(Prim.box(2.4, 2.8, 0.08, Palette.woodFloor, at: Prim.v(0, 1.60, 0)))
+        n.addChildNode(Prim.box(2.4, 0.10, 0.12, Palette.goldTrim, at: Prim.v(0, 3.02, 0.02)))
+        n.addChildNode(Prim.box(0.65, 0.65, 0.06, Palette.goldTrim, at: Prim.v(0, 1.60, 0.06), euler: Prim.deg(0, 0, 45)))
+        return n
+    }
+
+    // MARK: Kitchens
+
+    private static func dressKitchens(_ root: SCNNode) {
+        root.addChildNode(place(hearthOven(), -7.5, 0, -12.2))
+        root.addChildNode(place(worktable(), 0, 0, -6.0))
+        root.addChildNode(place(sacksAndBarrels(), 12.0, 0, -11.5, yDeg: -30))
+        root.addChildNode(place(hangingRack(), 0, 3.1, -8.6))
+        root.addChildNode(place(sacksAndBarrels(), -12.6, 0, 6.0, yDeg: 40))
+    }
+
+    private static func hearthOven() -> SCNNode {
+        let n = SCNNode()
+        n.addChildNode(Prim.box(3.2, 1.05, 1.6, Palette.tudorBrick, at: Prim.v(0, 0.52, 0)))
+        n.addChildNode(Prim.sphere(1.05, Palette.tudorBrick, at: Prim.v(0, 1.05, 0)))
+        n.addChildNode(Prim.tube(0.42, 0.58, 0.35, Palette.inkBlack, at: Prim.v(0, 1.05, 0.80), euler: Prim.deg(90, 0, 0)))
+        n.addChildNode(emit(Prim.cone(0, 0.32, 0.55, Palette.flame, at: Prim.v(0, 1.00, 0.72)), Palette.flame, 0.7))
+        n.addChildNode(Prim.box(0.85, 3.4, 0.85, Palette.tudorBrick, at: Prim.v(0, 2.90, -0.30)))
+        n.addChildNode(Prim.sphere(0.34, Palette.inkBlack, at: Prim.v(1.15, 1.25, 0.55)))
+        n.addChildNode(Prim.omni(intensity: 300, color: Palette.flame, distance: 6, at: Prim.v(0, 1.0, 0.72)))
+        return n
+    }
+
+    private static func worktable() -> SCNNode {
+        let n = SCNNode()
+        n.addChildNode(Prim.box(3.0, 0.14, 1.1, Palette.ermine, at: Prim.v(0, 0.86, 0)))
+        n.addChildNode(Prim.box(2.9, 0.16, 1.0, Palette.woodFloor, at: Prim.v(0, 0.72, 0)))
+        for lx in [Float(-1.35), 1.35] {
+            for lz in [Float(-0.42), 0.42] {
+                n.addChildNode(Prim.box(0.16, 0.80, 0.16, Palette.timberDark, at: Prim.v(lx, 0.40, lz)))
+            }
+        }
+        n.addChildNode(Prim.box(0.55, 0.05, 0.38, Palette.woodFloor, at: Prim.v(-0.75, 0.95, 0.05), euler: Prim.deg(0, 8, 0)))
+        n.addChildNode(Prim.capsule(0.11, 0.36, Palette.strawGold, at: Prim.v(0.60, 1.00, -0.02), euler: Prim.deg(0, 0, 90)))
+        return n
+    }
+
+    private static func sacksAndBarrels() -> SCNNode {
+        let n = SCNNode()
+        n.addChildNode(Prim.capsule(0.38, 1.05, Palette.strawGold, at: Prim.v(-0.55, 0.50, 0), euler: Prim.deg(12, 0, 0)))
+        n.addChildNode(Prim.capsule(0.34, 0.95, UIColor(hex: 0xB8985F), at: Prim.v(0.30, 0.45, -0.35), euler: Prim.deg(0, 0, -10)))
+        n.addChildNode(Prim.cyl(0.40, 1.00, Palette.timberDark, at: Prim.v(0.95, 0.50, 0.30)))
+        n.addChildNode(Prim.torus(0.41, 0.035, Palette.steelGrey, at: Prim.v(0.95, 0.24, 0.30)))
+        n.addChildNode(Prim.torus(0.41, 0.035, Palette.steelGrey, at: Prim.v(0.95, 0.76, 0.30)))
+        n.addChildNode(Prim.box(0.75, 0.55, 0.60, Palette.timberDark, at: Prim.v(-1.30, 0.27, 0.50), euler: Prim.deg(0, 16, 0)))
+        return n
+    }
+
+    private static func hangingRack() -> SCNNode {
+        let n = SCNNode()
+        n.addChildNode(Prim.box(3.6, 0.16, 0.16, Palette.timberDark, at: Prim.v(0, 0, 0)))
+        for i in 0..<5 {
+            let x = -1.4 + Float(i) * 0.7
+            n.addChildNode(Prim.torus(0.06, 0.015, Palette.steelGrey, at: Prim.v(x, -0.12, 0), euler: Prim.deg(90, 0, 0)))
+        }
+        n.addChildNode(Prim.sphere(0.22, Palette.inkBlack, at: Prim.v(-1.4, -0.42, 0)))
+        n.addChildNode(Prim.cyl(0.17, 0.30, Palette.steelGrey, at: Prim.v(-0.7, -0.40, 0)))
+        n.addChildNode(Prim.cyl(0.24, 0.07, Palette.inkBlack, at: Prim.v(0, -0.36, 0)))
+        n.addChildNode(Prim.cone(0.14, 0.03, 0.45, Palette.gardenGreen, at: Prim.v(0.7, -0.48, 0)))
+        n.addChildNode(Prim.cone(0.12, 0.03, 0.40, Palette.foliageDark, at: Prim.v(1.4, -0.46, 0)))
+        return n
+    }
+
+    // MARK: Gardens
+
+    private static func dressGardens(_ root: SCNNode) {
+        // Gravel cross paths.
+        root.addChildNode(Prim.box(28, 0.06, 1.4, UIColor(hex: 0xB3A98E), at: Prim.v(0, 0.03, 0)))
+        root.addChildNode(Prim.box(1.4, 0.06, 28, UIColor(hex: 0xB3A98E), at: Prim.v(0, 0.03, 0)))
+        root.addChildNode(place(fountain(), 0, 0, 0))
+        var i = 0
+        for qx in [Float(-6.5), 6.5] {
+            for qz in [Float(-6.5), 6.5] {
+                root.addChildNode(place(knotQuadrant(crimson: i % 2 == 0), qx, 0, qz))
+                i += 1
+            }
+        }
+        for tx in [Float(-2.9), 2.9] {
+            for tz in [Float(-2.9), 2.9] {
+                root.addChildNode(place(topiaryCone(), tx, 0, tz))
+            }
+        }
+        root.addChildNode(place(gardenBench(), 11.6, 0, 8.0, yDeg: -55))
+    }
+
+    private static func fountain() -> SCNNode {
+        let n = SCNNode()
+        n.addChildNode(Prim.tube(1.55, 1.85, 0.55, Palette.chapelStone, at: Prim.v(0, 0.27, 0)))
+        n.addChildNode(Prim.cyl(1.55, 0.06, Palette.waterBlue, at: Prim.v(0, 0.46, 0)))
+        n.addChildNode(Prim.cyl(0.38, 0.70, Palette.chapelStone, at: Prim.v(0, 0.35, 0)))
+        n.addChildNode(Prim.cyl(0.16, 1.30, Palette.chapelStone, at: Prim.v(0, 1.35, 0)))
+        n.addChildNode(Prim.tube(0.50, 0.68, 0.20, Palette.chapelStone, at: Prim.v(0, 2.05, 0)))
+        n.addChildNode(Prim.cone(0.05, 0.02, 0.55, Palette.waterBlue, at: Prim.v(0, 2.42, 0)))
+        n.addChildNode(Prim.sphere(0.13, Palette.goldTrim, at: Prim.v(0, 2.78, 0)))
+        return n
+    }
+
+    private static func knotQuadrant(crimson: Bool) -> SCNNode {
+        let hedge = UIColor(hex: 0x3F6B4A)
+        let n = SCNNode()
+        n.addChildNode(Prim.box(4.4, 0.45, 0.45, hedge, at: Prim.v(0, 0.22, -1.98)))
+        n.addChildNode(Prim.box(4.4, 0.45, 0.45, hedge, at: Prim.v(0, 0.22, 1.98)))
+        n.addChildNode(Prim.box(0.45, 0.45, 3.5, hedge, at: Prim.v(1.98, 0.22, 0)))
+        n.addChildNode(Prim.box(0.45, 0.45, 3.5, hedge, at: Prim.v(-1.98, 0.22, 0)))
+        n.addChildNode(Prim.box(1.9, 0.10, 1.9, crimson ? Palette.royalCrimson : Palette.goldTrim,
+                                at: Prim.v(0, 0.05, 0), euler: Prim.deg(0, 45, 0)))
+        n.addChildNode(Prim.sphere(0.42, Palette.foliageDark, at: Prim.v(0, 0.62, 0)))
+        return n
+    }
+
+    private static func topiaryCone() -> SCNNode {
+        let n = SCNNode()
+        n.addChildNode(Prim.box(0.75, 0.55, 0.75, Palette.chapelStone, at: Prim.v(0, 0.27, 0)))
+        n.addChildNode(Prim.cone(0, 0.42, 1.55, Palette.gardenGreen, at: Prim.v(0, 1.32, 0)))
+        n.addChildNode(Prim.sphere(0.13, Palette.foliageDark, at: Prim.v(0, 2.14, 0)))
+        return n
+    }
+
+    private static func gardenBench() -> SCNNode {
+        let n = SCNNode()
+        n.addChildNode(Prim.box(2.1, 0.14, 0.50, Palette.chapelStone, at: Prim.v(0, 0.46, 0)))
+        n.addChildNode(Prim.box(0.22, 0.46, 0.50, Palette.chapelStone, at: Prim.v(-0.94, 0.23, 0)))
+        n.addChildNode(Prim.box(0.22, 0.46, 0.50, Palette.chapelStone, at: Prim.v(0.94, 0.23, 0)))
+        n.addChildNode(Prim.box(2.1, 0.55, 0.12, Palette.chapelStone, at: Prim.v(0, 0.80, 0.19)))
+        return n
+    }
+
+    // MARK: The Tower
+
+    private static func dressTower(_ root: SCNNode) {
+        root.addChildNode(place(cellBars(), 0, 0, 8.5))
+        root.addChildNode(place(barredWindow(), 0, 4.3, -13.6))
+        root.addChildNode(place(chains(), -13.4, 2.4, -4.0, yDeg: 90))
+        root.addChildNode(place(chains(), -13.4, 2.4, 1.0, yDeg: 90))
+        root.addChildNode(place(block(), 0, 0, -8.0, yDeg: 12))
+        root.addChildNode(place(cellBars(), 13.4, 0, -2.0, yDeg: 90))
+    }
+
+    private static func cellBars() -> SCNNode {
+        let n = SCNNode()
+        n.addChildNode(Prim.box(5.0, 0.25, 0.35, Palette.chapelStone, at: Prim.v(0, 0.12, 0)))
+        n.addChildNode(Prim.box(5.0, 0.25, 0.35, Palette.chapelStone, at: Prim.v(0, 3.90, 0)))
+        for i in 0..<9 {
+            let x = -2.2 + Float(i) * 0.55
+            n.addChildNode(Prim.cyl(0.06, 3.7, Palette.steelGrey, at: Prim.v(x, 2.0, 0)))
+        }
+        n.addChildNode(Prim.box(4.6, 0.10, 0.10, Palette.steelGrey, at: Prim.v(0, 2.00, 0)))
+        return n
+    }
+
+    private static func barredWindow() -> SCNNode {
+        let n = SCNNode()
+        n.addChildNode(Prim.box(0.95, 1.50, 0.70, Palette.chapelStone, at: Prim.v(0, 0, 0)))
+        n.addChildNode(Prim.plane(0.60, 1.15, Palette.skyBackdrop, at: Prim.v(0, 0, -0.30),
+                                  emission: Palette.skyBackdrop, emissionIntensity: 0.6, doubleSided: true))
+        n.addChildNode(Prim.cyl(0.045, 1.15, Palette.steelGrey, at: Prim.v(0, 0, -0.26)))
+        n.addChildNode(Prim.cyl(0.045, 0.60, Palette.steelGrey, at: Prim.v(0, 0, -0.26), euler: Prim.deg(0, 0, 90)))
+        // A single cold shaft of daylight.
+        let spot = SCNNode()
+        let light = SCNLight()
+        light.type = .spot
+        light.color = Palette.skyBackdrop
+        light.intensity = 500
+        light.spotOuterAngle = 40
+        spot.light = light
+        spot.position = Prim.v(0, 0, -0.6)
+        spot.eulerAngles = Prim.deg(-35, 0, 0)
+        n.addChildNode(spot)
+        return n
+    }
+
+    private static func chains() -> SCNNode {
+        let n = SCNNode()
+        n.addChildNode(Prim.box(0.30, 0.30, 0.10, Palette.steelGrey, at: Prim.v(0, 0, 0)))
+        for i in 0..<5 {
+            let y = -0.2 - Float(i) * 0.2
+            let euler = i % 2 == 0 ? Prim.deg(90, 0, 0) : Prim.deg(0, 0, 90)
+            n.addChildNode(Prim.torus(0.09, 0.025, Palette.steelGrey, at: Prim.v(0, y, 0.03), euler: euler))
+        }
+        n.addChildNode(Prim.torus(0.11, 0.035, Palette.steelGrey, at: Prim.v(0, -1.22, 0.03), euler: Prim.deg(90, 0, 0)))
+        return n
+    }
+
+    private static func block() -> SCNNode {
+        let n = SCNNode()
+        n.addChildNode(Prim.box(0.90, 0.55, 0.70, Palette.timberDark, at: Prim.v(0, 0.27, 0), chamfer: 0.10))
+        n.addChildNode(Prim.cyl(0.22, 0.72, UIColor(hex: 0x5C4226), at: Prim.v(0, 0.55, 0), euler: Prim.deg(90, 0, 0)))
+        n.addChildNode(Prim.box(2.4, 0.08, 1.8, Palette.strawGold, at: Prim.v(0, 0.04, 0.9), euler: Prim.deg(0, 8, 0)))
+        n.addChildNode(Prim.box(1.6, 0.08, 1.2, UIColor(hex: 0xB8985F), at: Prim.v(-1.1, 0.04, 1.4), euler: Prim.deg(0, -22, 0)))
         return n
     }
 }
