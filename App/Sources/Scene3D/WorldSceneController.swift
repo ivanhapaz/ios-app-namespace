@@ -29,6 +29,9 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
     private var lastNearby: NPCID?
     private var isTransitioning = false
 
+    private var kingNode: SCNNode?
+    private var lastSlot: TimeSlot?
+
     // MARK: Tunables
     private let speed: Float = 6.0
     private let roomHalf: Float = 14          // half the room's side length
@@ -133,6 +136,9 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
             buildWall(on: edge, doorway: def.doorways.first { $0.edge == edge })
         }
         buildRoomNPC(def)
+        kingNode = nil
+        lastSlot = game?.slot
+        addKingIfNeeded()
 
         // Place the player at the doorway they arrived through (facing into the
         // room), else near the "south" of the room facing in.
@@ -268,22 +274,49 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
         case .servantSpy: tunic = UIColor(red: 0.35, green: 0.32, blue: 0.26, alpha: 1)
         case .ladyInWaiting: tunic = UIColor(red: 0.30, green: 0.42, blue: 0.48, alpha: 1)
         case .cromwell: tunic = UIColor(red: 0.15, green: 0.15, blue: 0.18, alpha: 1)
+        case .king: tunic = UIColor(red: 0.29, green: 0.18, blue: 0.37, alpha: 1) // (not used as a resident)
         }
         let node = Self.makeCharacter(tunic: tunic)
         // Stand toward the back of the room, facing the centre.
         node.position = SCNVector3(x: 3, y: 0, z: -roomHalf * 0.45)
         node.eulerAngles = SCNVector3(x: 0, y: Float.pi, z: 0)
+        node.addChildNode(Self.glowRing())
         roomNode.addChildNode(node)
 
-        // A soft glowing ring so the interactable NPC reads clearly.
+        npcs.append((id: npc, node: node))
+    }
+
+    // MARK: The King (moves on a schedule)
+
+    /// Add the crowned King to the current room if his schedule places him here.
+    private func addKingIfNeeded() {
+        guard let slot = game?.slot, slot.kingRoom == currentRoom else { return }
+        let king = Self.makeCharacter(
+            tunic: UIColor(red: 0.29, green: 0.18, blue: 0.37, alpha: 1), // royal purple
+            crowned: true
+        )
+        king.position = SCNVector3(x: -3.5, y: 0, z: -roomHalf * 0.4)
+        king.eulerAngles = SCNVector3(x: 0, y: Float.pi, z: 0)
+        king.addChildNode(Self.glowRing())
+        roomNode.addChildNode(king)
+        npcs.append((id: .king, node: king))
+        kingNode = king
+    }
+
+    private func removeKing() {
+        kingNode?.removeFromParentNode()
+        kingNode = nil
+        npcs.removeAll { $0.id == .king }
+    }
+
+    /// A soft gold ring under an interactable character.
+    static func glowRing() -> SCNNode {
         let ring = SCNTorus(ringRadius: 1.1, pipeRadius: 0.06)
         ring.firstMaterial?.diffuse.contents = UIColor(red: 0.95, green: 0.86, blue: 0.55, alpha: 0.9)
         ring.firstMaterial?.emission.contents = UIColor(red: 0.95, green: 0.86, blue: 0.55, alpha: 0.6)
-        let ringNode = SCNNode(geometry: ring)
-        ringNode.position = SCNVector3(x: 0, y: 0.05, z: 0)
-        node.addChildNode(ringNode)
-
-        npcs.append((id: npc, node: node))
+        let node = SCNNode(geometry: ring)
+        node.position = SCNVector3(x: 0, y: 0.05, z: 0)
+        return node
     }
 
     // MARK: Geometry helpers
@@ -362,6 +395,14 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
                 player.eulerAngles = SCNVector3(x: 0, y: atan2(-vx, -vz), z: 0)
                 checkDoorways()
             }
+
+            // If the clock advanced, the King may have entered or left this room.
+            if let slot = game?.slot, slot != lastSlot {
+                lastSlot = slot
+                removeKing()
+                addKingIfNeeded()
+            }
+
             updateProximity()
         }
         cameraNode.position = lerp(cameraNode.position, cameraTarget(), camLerp)
@@ -428,7 +469,7 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
 
     // MARK: Character factory
 
-    static func makeCharacter(tunic: UIColor) -> SCNNode {
+    static func makeCharacter(tunic: UIColor, crowned: Bool = false) -> SCNNode {
         let root = SCNNode()
 
         let body = SCNCapsule(capRadius: 0.36, height: 1.5)
@@ -451,6 +492,21 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
         noseNode.position = SCNVector3(x: 0, y: 1.78, z: -0.30)
         noseNode.eulerAngles = SCNVector3(x: -Float.pi / 2, y: 0, z: 0)
         root.addChildNode(noseNode)
+
+        if crowned {
+            let gold = UIColor(hex: 0xC9A227)
+            let band = SCNTorus(ringRadius: 0.27, pipeRadius: 0.05)
+            band.firstMaterial?.diffuse.contents = gold
+            let bandNode = SCNNode(geometry: band)
+            bandNode.position = SCNVector3(x: 0, y: 2.03, z: 0)
+            root.addChildNode(bandNode)
+
+            let finial = SCNCone(topRadius: 0, bottomRadius: 0.09, height: 0.2)
+            finial.firstMaterial?.diffuse.contents = gold
+            let finialNode = SCNNode(geometry: finial)
+            finialNode.position = SCNVector3(x: 0, y: 2.2, z: 0)
+            root.addChildNode(finialNode)
+        }
 
         return root
     }

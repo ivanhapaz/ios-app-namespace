@@ -25,14 +25,16 @@ struct GameContainerView: View {
                         .padding(.horizontal, 14)
                         .padding(.top, 8)
                     Spacer()
-                    InventoryBar(day: game.day)
+                    InventoryBar(day: game.day, slot: game.slot)
                         .padding(.horizontal, 14)
                         .padding(.bottom, 8)
                 }
 
-                if let npc = game.nearby, game.activeDilemma == nil {
-                    VStack {
-                        Spacer()
+                // Bottom-centre action: Approach when near someone, else Wait to
+                // pass the time (which moves the King along his schedule).
+                VStack {
+                    Spacer()
+                    if let npc = game.nearby, game.activeDilemma == nil {
                         Button {
                             game.activeDilemma = DilemmaCatalog.dilemma(for: npc)
                         } label: {
@@ -45,6 +47,22 @@ struct GameContainerView: View {
                             pressedFill: Theme.pressedFill,
                             inner: [FrameRule(gutter: 2, color: Theme.goldLeaf)],
                             vPad: 12, hPad: 22
+                        ))
+                        .fixedSize()
+                        .padding(.bottom, 118)
+                    } else if game.activeDilemma == nil {
+                        Button {
+                            withAnimation { game.wait() }
+                        } label: {
+                            Label("Wait", systemImage: "hourglass")
+                                .font(Theme.body(15))
+                                .foregroundStyle(Theme.mutedText)
+                        }
+                        .buttonStyle(ManuscriptButtonStyle(
+                            fill: Theme.parchmentLight,
+                            pressedFill: Theme.pressedFill,
+                            inner: [FrameRule(gutter: 2, color: Theme.goldLeaf.opacity(0.75))],
+                            vPad: 10, hPad: 18
                         ))
                         .fixedSize()
                         .padding(.bottom, 118)

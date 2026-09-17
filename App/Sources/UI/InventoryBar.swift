@@ -4,6 +4,7 @@ import SwiftUI
 /// day count. Icons are drawn from primitives — no image assets.
 struct InventoryBar: View {
     let day: Int
+    let slot: TimeSlot
 
     // Item art is showcased here; gameplay will drive which tiles show once the
     // quest-item system lands.
@@ -15,7 +16,7 @@ struct InventoryBar: View {
                 ItemTile(item: item)
             }
             Spacer()
-            Text("DAY \(romanNumeral(day))")
+            Text("DAY \(romanNumeral(day)) · \(slot.label)")
                 .font(Theme.display(10))
                 .tracking(1.2)
                 .foregroundStyle(Theme.mutedText)

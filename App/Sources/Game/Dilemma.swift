@@ -65,6 +65,15 @@ enum DilemmaCatalog {
                 choiceB: Choice(text: "Stay carefully noncommittal.",
                                 delta: MeterDelta(royalFavor: -5, suspicion: -5))
             )
+        case .king:
+            return Dilemma(
+                speaker: "His Majesty the King",
+                setup: "His Majesty asks what you think of his new queen.",
+                choiceA: Choice(text: "Flatter her endlessly.",
+                                delta: MeterDelta(royalFavor: 15, suspicion: 10)),
+                choiceB: Choice(text: "Answer honestly.",
+                                delta: MeterDelta(royalFavor: -10, piety: 10))
+            )
         }
     }
 }

@@ -25,6 +25,7 @@ enum NPCID: String {
     case servantSpy
     case ladyInWaiting
     case cromwell
+    case king
 }
 
 /// Held quest items (the design's letter / jewel / relic).
@@ -57,6 +58,7 @@ final class GameState: ObservableObject {
     @Published var phase: GamePhase = .title
     @Published var meters = Meters()
     @Published var day: Int = 1
+    @Published var slot: TimeSlot = .morning
     @Published var inventory: [Item] = []
 
     @Published var nearby: NPCID?
@@ -77,14 +79,26 @@ final class GameState: ObservableObject {
         phase = .playing
     }
 
-    /// Apply a choice's deltas, advance the day, then test for a loss.
+    /// Apply a choice's deltas, advance the clock, then test for a loss.
     func apply(_ delta: MeterDelta) {
         meters.royalFavor = clamp(meters.royalFavor + delta.royalFavor)
         meters.piety = clamp(meters.piety + delta.piety)
         meters.wealth = clamp(meters.wealth + delta.wealth)
         meters.suspicion = clamp(meters.suspicion + delta.suspicion)
-        day += 1
+        advanceClock()
         checkLoss()
+    }
+
+    /// Bide your time: advance the clock without an encounter.
+    func wait() {
+        advanceClock()
+    }
+
+    /// Move to the next slot; roll to a new day after Evening.
+    private func advanceClock() {
+        let (next, newDay) = slot.advanced()
+        slot = next
+        if newDay { day += 1 }
     }
 
     private func clamp(_ value: Int) -> Int {
@@ -115,6 +129,7 @@ final class GameState: ObservableObject {
     func restart() {
         meters = Meters()
         day = 1
+        slot = .morning
         inventory = []
         activeDilemma = nil
         gameOver = nil
