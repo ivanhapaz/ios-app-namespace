@@ -11,11 +11,18 @@ final class RoomCatalogTests: XCTestCase {
         }
     }
 
-    func testGreatHallIsTheHub() {
-        let hall = RoomCatalog.room(.greatHall)
-        let destinations = Set(hall.doorways.map { $0.destination })
-        XCTAssertEqual(destinations, [.privyChamber, .kitchens, .chapel, .gardens])
-        XCTAssertTrue(hall.doorways.allSatisfy { !$0.locked }, "Hall doorways should be open")
+    func testCourtyardIsTheHub() {
+        let courtyard = RoomCatalog.room(.courtyard)
+        let destinations = Set(courtyard.doorways.map { $0.destination })
+        XCTAssertEqual(destinations, [.greatHall, .chapel, .kitchens, .gardens])
+        XCTAssertTrue(courtyard.doorways.allSatisfy { !$0.locked }, "Courtyard doorways should be open")
+        XCTAssertNil(courtyard.npc, "The courtyard hub has no resident NPC")
+    }
+
+    func testPrivyChamberIsReachedThroughTheGreatHall() {
+        // The King's inner sanctum hangs off the Great Hall, not the courtyard.
+        XCTAssertNotNil(RoomCatalog.doorway(in: .greatHall, leadingTo: .privyChamber))
+        XCTAssertNil(RoomCatalog.doorway(in: .courtyard, leadingTo: .privyChamber))
     }
 
     /// Every open doorway must have a matching open doorway leading back, so the

@@ -3,6 +3,7 @@ import CoreGraphics
 /// The six rooms of the palace. The `Tower` is the fail-state room the player
 /// never walks into by choice — the game relocates them there on a loss.
 enum RoomID: String, CaseIterable, Codable {
+    case courtyard
     case greatHall
     case privyChamber
     case chapel
@@ -57,4 +58,25 @@ struct RoomDefinition {
     /// Muted Tudor floor tone, as RGB in 0...1.
     let floor: (r: CGFloat, g: CGFloat, b: CGFloat)
     let doorways: [Doorway]
+    /// The NPC who lives here, if any (the courtyard hub has none).
+    let npc: NPCID?
+    /// Outdoor rooms (the courtyard) use cobbles + open sky; indoor rooms use
+    /// plaster walls and a warmer interior tone.
+    let isOutdoor: Bool
+
+    init(id: RoomID,
+         name: String,
+         subtitle: String,
+         floor: (r: CGFloat, g: CGFloat, b: CGFloat),
+         doorways: [Doorway],
+         npc: NPCID? = nil,
+         isOutdoor: Bool = false) {
+        self.id = id
+        self.name = name
+        self.subtitle = subtitle
+        self.floor = floor
+        self.doorways = doorways
+        self.npc = npc
+        self.isOutdoor = isOutdoor
+    }
 }
