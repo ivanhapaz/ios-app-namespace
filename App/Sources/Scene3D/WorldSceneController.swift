@@ -238,11 +238,12 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
         let label = Self.billboardLabel(RoomCatalog.room(destination).name)
         let edgePos = edgePosition(edge)
         let inward: Float = 0.6
+        let signY: Float = 4.6
         switch edge {
-        case .north: label.position = SCNVector3(x: 0, y: 3.4, z: edgePos + inward)
-        case .south: label.position = SCNVector3(x: 0, y: 3.4, z: edgePos - inward)
-        case .east:  label.position = SCNVector3(x: edgePos - inward, y: 3.4, z: 0)
-        case .west:  label.position = SCNVector3(x: edgePos + inward, y: 3.4, z: 0)
+        case .north: label.position = SCNVector3(x: 0, y: signY, z: edgePos + inward)
+        case .south: label.position = SCNVector3(x: 0, y: signY, z: edgePos - inward)
+        case .east:  label.position = SCNVector3(x: edgePos - inward, y: signY, z: 0)
+        case .west:  label.position = SCNVector3(x: edgePos + inward, y: signY, z: 0)
         }
         roomNode.addChildNode(label)
     }
@@ -402,9 +403,12 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
 
     private func cameraTarget() -> SCNVector3 {
         let yaw = player.eulerAngles.y
-        return SCNVector3(x: player.position.x + sin(yaw) * camDistance,
-                          y: camHeight,
-                          z: player.position.z + cos(yaw) * camDistance)
+        // Keep the camera inside the walls so it never clips through them (which
+        // would reveal doorway signs point-blank). Near a wall the view tightens.
+        let limit = roomHalf - 0.7
+        let x = clamp(player.position.x + sin(yaw) * camDistance, -limit, limit)
+        let z = clamp(player.position.z + cos(yaw) * camDistance, -limit, limit)
+        return SCNVector3(x: x, y: camHeight, z: z)
     }
 
     private func snapCameraBehindPlayer() {
@@ -479,6 +483,7 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
         let (minB, maxB) = text.boundingBox
         node.pivot = SCNMatrix4MakeTranslation((minB.x + maxB.x) / 2,
                                                (minB.y + maxB.y) / 2, 0)
+        node.scale = SCNVector3(x: 0.6, y: 0.6, z: 0.6)
         node.constraints = [SCNBillboardConstraint()]
         return node
     }
