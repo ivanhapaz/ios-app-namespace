@@ -103,8 +103,7 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
         scene.rootNode.addChildNode(roomNode)
 
         // Player (persists; only the room around them changes).
-        let body = Self.makeCharacter(tunic: UIColor(red: 0.20, green: 0.24, blue: 0.42, alpha: 1))
-        player.addChildNode(body)
+        player.addChildNode(CharacterKit.makePlayer())
         scene.rootNode.addChildNode(player)
         lookTarget.position = SCNVector3(x: 0, y: 1.4, z: 0)
         player.addChildNode(lookTarget)
@@ -267,16 +266,7 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
 
     private func buildRoomNPC(_ def: RoomDefinition) {
         guard let npc = def.npc else { return }
-        let tunic: UIColor
-        switch npc {
-        case .priest: tunic = UIColor(red: 0.24, green: 0.20, blue: 0.30, alpha: 1)
-        case .rivalCourtier: tunic = UIColor(red: 0.45, green: 0.18, blue: 0.20, alpha: 1)
-        case .servantSpy: tunic = UIColor(red: 0.35, green: 0.32, blue: 0.26, alpha: 1)
-        case .ladyInWaiting: tunic = UIColor(red: 0.30, green: 0.42, blue: 0.48, alpha: 1)
-        case .cromwell: tunic = UIColor(red: 0.15, green: 0.15, blue: 0.18, alpha: 1)
-        case .king: tunic = UIColor(red: 0.29, green: 0.18, blue: 0.37, alpha: 1) // (not used as a resident)
-        }
-        let node = Self.makeCharacter(tunic: tunic)
+        let node = CharacterKit.character(for: npc)
         // Stand toward the back of the room, facing the centre.
         node.position = SCNVector3(x: 3, y: 0, z: -roomHalf * 0.45)
         node.eulerAngles = SCNVector3(x: 0, y: Float.pi, z: 0)
@@ -291,10 +281,7 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
     /// Add the crowned King to the current room if his schedule places him here.
     private func addKingIfNeeded() {
         guard let slot = game?.slot, slot.kingRoom == currentRoom else { return }
-        let king = Self.makeCharacter(
-            tunic: UIColor(red: 0.29, green: 0.18, blue: 0.37, alpha: 1), // royal purple
-            crowned: true
-        )
+        let king = CharacterKit.makeKing()
         king.position = SCNVector3(x: -3.5, y: 0, z: -roomHalf * 0.4)
         king.eulerAngles = SCNVector3(x: 0, y: Float.pi, z: 0)
         king.addChildNode(Self.glowRing())
@@ -465,50 +452,6 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
 
     private func snapCameraBehindPlayer() {
         cameraNode.position = cameraTarget()
-    }
-
-    // MARK: Character factory
-
-    static func makeCharacter(tunic: UIColor, crowned: Bool = false) -> SCNNode {
-        let root = SCNNode()
-
-        let body = SCNCapsule(capRadius: 0.36, height: 1.5)
-        body.firstMaterial?.diffuse.contents = tunic
-        let bodyNode = SCNNode(geometry: body)
-        bodyNode.position = SCNVector3(x: 0, y: 0.9, z: 0)
-        bodyNode.castsShadow = true
-        root.addChildNode(bodyNode)
-
-        let head = SCNSphere(radius: 0.29)
-        head.firstMaterial?.diffuse.contents = UIColor(red: 0.90, green: 0.75, blue: 0.62, alpha: 1)
-        let headNode = SCNNode(geometry: head)
-        headNode.position = SCNVector3(x: 0, y: 1.78, z: 0)
-        headNode.castsShadow = true
-        root.addChildNode(headNode)
-
-        let nose = SCNCone(topRadius: 0, bottomRadius: 0.09, height: 0.22)
-        nose.firstMaterial?.diffuse.contents = UIColor(red: 0.95, green: 0.86, blue: 0.55, alpha: 1)
-        let noseNode = SCNNode(geometry: nose)
-        noseNode.position = SCNVector3(x: 0, y: 1.78, z: -0.30)
-        noseNode.eulerAngles = SCNVector3(x: -Float.pi / 2, y: 0, z: 0)
-        root.addChildNode(noseNode)
-
-        if crowned {
-            let gold = UIColor(hex: 0xC9A227)
-            let band = SCNTorus(ringRadius: 0.27, pipeRadius: 0.05)
-            band.firstMaterial?.diffuse.contents = gold
-            let bandNode = SCNNode(geometry: band)
-            bandNode.position = SCNVector3(x: 0, y: 2.03, z: 0)
-            root.addChildNode(bandNode)
-
-            let finial = SCNCone(topRadius: 0, bottomRadius: 0.09, height: 0.2)
-            finial.firstMaterial?.diffuse.contents = gold
-            let finialNode = SCNNode(geometry: finial)
-            finialNode.position = SCNVector3(x: 0, y: 2.2, z: 0)
-            root.addChildNode(finialNode)
-        }
-
-        return root
     }
 
     // MARK: Small math helpers
