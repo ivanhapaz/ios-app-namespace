@@ -65,6 +65,10 @@ final class GameState: ObservableObject {
     @Published var activeDilemma: Dilemma?
     @Published var gameOver: GameOverInfo?
 
+    /// Delayed consequences waiting to fire, and the one currently on screen.
+    @Published var pendingEvents: [ScheduledEvent] = []
+    @Published var activeEvent: ScheduledEvent?
+
     /// The room you're currently standing in (for the HUD/scene banner).
     @Published var roomName: String = "Courtyard"
     /// Screen fade for room transitions: 0 = clear, 1 = black.
@@ -87,26 +91,46 @@ final class GameState: ObservableObject {
         if let index = inventory.firstIndex(of: item) { inventory.remove(at: index) }
     }
 
-    /// Resolve a dilemma choice: move items, then apply meters + advance clock.
+    /// Resolve a dilemma choice: move items, schedule any consequence, then
+    /// apply meters and let time pass.
     func choose(_ choice: Choice) {
         if let granted = choice.grant { add(granted) }
         if let consumed = choice.consume { remove(consumed) }
-        apply(choice.delta)
+        if let template = choice.schedules {
+            pendingEvents.append(ScheduledEvent(
+                fireOnDay: day + template.delayDays,
+                title: template.title,
+                body: template.body,
+                effect: template.effect
+            ))
+        }
+        applyMeters(choice.delta)
+        tick()
     }
 
-    /// Apply a choice's deltas, advance the clock, then test for a loss.
-    func apply(_ delta: MeterDelta) {
+    /// Bide your time: let a slot pass (which can trigger delayed consequences).
+    func wait() {
+        tick()
+    }
+
+    private func applyMeters(_ delta: MeterDelta) {
         meters.royalFavor = clamp(meters.royalFavor + delta.royalFavor)
         meters.piety = clamp(meters.piety + delta.piety)
         meters.wealth = clamp(meters.wealth + delta.wealth)
         meters.suspicion = clamp(meters.suspicion + delta.suspicion)
-        advanceClock()
-        checkLoss()
     }
 
-    /// Bide your time: advance the clock without an encounter.
-    func wait() {
+    /// A convenience for callers/tests that just want to apply meters + tick.
+    func apply(_ delta: MeterDelta) {
+        applyMeters(delta)
+        tick()
+    }
+
+    /// Advance the clock one slot, fire any due consequence, then test for loss.
+    private func tick() {
         advanceClock()
+        fireDueEvents()
+        checkLoss()
     }
 
     /// Move to the next slot; roll to a new day after Evening.
@@ -114,6 +138,14 @@ final class GameState: ObservableObject {
         let (next, newDay) = slot.advanced()
         slot = next
         if newDay { day += 1 }
+    }
+
+    /// Fire the earliest consequence whose day has arrived (one per slot).
+    private func fireDueEvents() {
+        guard let index = pendingEvents.firstIndex(where: { $0.fireOnDay <= day }) else { return }
+        let event = pendingEvents.remove(at: index)
+        applyMeters(event.effect)
+        activeEvent = event
     }
 
     private func clamp(_ value: Int) -> Int {
@@ -141,6 +173,10 @@ final class GameState: ObservableObject {
     }
 
     /// Begin a fresh run (from the game-over screen).
+    func dismissEvent() {
+        activeEvent = nil
+    }
+
     func restart() {
         meters = Meters()
         day = 1
@@ -149,6 +185,8 @@ final class GameState: ObservableObject {
         activeDilemma = nil
         gameOver = nil
         nearby = nil
+        pendingEvents = []
+        activeEvent = nil
         phase = .playing
     }
 }
