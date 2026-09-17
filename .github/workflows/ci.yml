@@ -10,7 +10,7 @@ jobs:
     runs-on: namespace-profile-ivanha
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: namespacelabs/nscloud-checkout-action@v8
 
       # Reuse compiled Swift (Xcode DerivedData) and Homebrew downloads across
       # runs via Namespace Cache Volumes. Must come after checkout (which wipes
