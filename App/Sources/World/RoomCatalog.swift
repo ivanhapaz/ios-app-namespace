@@ -1,31 +1,45 @@
 import Foundation
 
 /// The palace floor plan, kept as plain data so rooms and connections are
-/// trivial to tweak. Layout mirrors the design's map:
+/// trivial to tweak. The Courtyard is the hub you start in; its four walls open
+/// onto the Great Hall, Chapel, Kitchens, and Gardens. The King's Privy Chamber
+/// sits one step deeper, through the Great Hall. The Chapel and Gardens each
+/// hold a locked, story-only passage toward the Tower.
 ///
-///                 Privy Chamber
-///                       |
-///   Kitchens ——— Great Hall ——— Chapel
-///                       |            :
-///                    Gardens ····· Tower
-///
-/// Great Hall is the hub (north→Privy, west→Kitchens, east→Chapel,
-/// south→Gardens). The Chapel and Gardens each hold a locked, story-only
-/// passage toward the Tower.
+///                    Privy Chamber
+///                          |
+///                     Great Hall
+///                          |
+///   Kitchens ——————  Courtyard  —————— Chapel
+///                          |
+///                       Gardens
 enum RoomCatalog {
     static let all: [RoomID: RoomDefinition] = {
         let defs: [RoomDefinition] = [
             RoomDefinition(
+                id: .courtyard,
+                name: "Courtyard",
+                subtitle: "The heart of the palace",
+                floor: (0.56, 0.55, 0.50), // cobble
+                doorways: [
+                    Doorway(.north, to: .greatHall),
+                    Doorway(.east, to: .chapel),
+                    Doorway(.west, to: .kitchens),
+                    Doorway(.south, to: .gardens),
+                ],
+                npc: nil,
+                isOutdoor: true
+            ),
+            RoomDefinition(
                 id: .greatHall,
                 name: "Great Hall",
-                subtitle: "Rival courtier · gossiping ladies",
+                subtitle: "A rival courtier · gossiping ladies",
                 floor: (0.84, 0.80, 0.71), // warm stone
                 doorways: [
+                    Doorway(.south, to: .courtyard),
                     Doorway(.north, to: .privyChamber),
-                    Doorway(.west, to: .kitchens),
-                    Doorway(.east, to: .chapel),
-                    Doorway(.south, to: .gardens),
-                ]
+                ],
+                npc: .rivalCourtier
             ),
             RoomDefinition(
                 id: .privyChamber,
@@ -34,7 +48,8 @@ enum RoomCatalog {
                 floor: (0.93, 0.84, 0.62), // royal gold
                 doorways: [
                     Doorway(.south, to: .greatHall),
-                ]
+                ],
+                npc: .cromwell
             ),
             RoomDefinition(
                 id: .chapel,
@@ -42,9 +57,10 @@ enum RoomCatalog {
                 subtitle: "The priest · Piety",
                 floor: (0.70, 0.72, 0.66), // cool stone
                 doorways: [
-                    Doorway(.west, to: .greatHall),
+                    Doorway(.west, to: .courtyard),
                     Doorway(.south, to: .tower, locked: true),
-                ]
+                ],
+                npc: .priest
             ),
             RoomDefinition(
                 id: .kitchens,
@@ -52,18 +68,21 @@ enum RoomCatalog {
                 subtitle: "The servant-spy",
                 floor: (0.72, 0.66, 0.58), // smoky brown-grey
                 doorways: [
-                    Doorway(.east, to: .greatHall),
-                ]
+                    Doorway(.east, to: .courtyard),
+                ],
+                npc: .servantSpy
             ),
             RoomDefinition(
                 id: .gardens,
                 name: "Gardens",
-                subtitle: "Lady-in-waiting",
+                subtitle: "A lady-in-waiting",
                 floor: (0.55, 0.64, 0.49), // forest green
                 doorways: [
-                    Doorway(.north, to: .greatHall),
+                    Doorway(.north, to: .courtyard),
                     Doorway(.east, to: .tower, locked: true),
-                ]
+                ],
+                npc: .ladyInWaiting,
+                isOutdoor: true
             ),
             RoomDefinition(
                 id: .tower,
@@ -71,10 +90,10 @@ enum RoomCatalog {
                 subtitle: "Fail state",
                 floor: (0.52, 0.20, 0.20), // ominous deep red
                 doorways: [
-                    // Reciprocals of the story-only passages, also locked.
                     Doorway(.north, to: .chapel, locked: true),
                     Doorway(.west, to: .gardens, locked: true),
-                ]
+                ],
+                npc: nil
             ),
         ]
         return Dictionary(uniqueKeysWithValues: defs.map { ($0.id, $0) })

@@ -43,6 +43,13 @@ final class GameState: ObservableObject {
     @Published var activeDilemma: Dilemma?
     @Published var gameOver: GameOverInfo?
 
+    /// The room you're currently standing in (for the HUD banner).
+    @Published var roomName: String = "Courtyard"
+    /// Soft-guidance line telling you where to go next.
+    @Published var objective: String = "Get your bearings — try a doorway."
+    /// Screen fade for room transitions: 0 = clear, 1 = black.
+    @Published var fade: Double = 0
+
     /// Apply a choice's deltas, clamped to 0...100, then test for a loss.
     func apply(_ delta: MeterDelta) {
         meters.royalFavor = clamp(meters.royalFavor + delta.royalFavor)

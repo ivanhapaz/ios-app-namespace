@@ -1,9 +1,10 @@
 import SwiftUI
 
-/// Hosts the 3D SceneKit world and overlays the SwiftUI game UI: the four-meter
-/// HUD, the movement joystick, the "Approach" prompt, the dialogue card, and the
-/// game-over screen. `MovementInput` and `GameState` are held as stable state so
-/// the joystick, HUD, and scene controller all share the same instances.
+/// Hosts the 3D palace and overlays the game UI: the four-meter HUD, a room +
+/// objective banner, the movement joystick, the "Approach" prompt, the dialogue
+/// card, room-transition fade, and the game-over screen. `MovementInput` and
+/// `GameState` are held as stable state so the joystick, HUD, and scene
+/// controller all share the same instances.
 struct GameContainerView: View {
     @State private var input = MovementInput()
     @StateObject private var game = GameState()
@@ -13,10 +14,11 @@ struct GameContainerView: View {
             GameSceneView(input: input, game: game)
                 .ignoresSafeArea()
 
-            // Top: always-visible meters.
-            VStack {
+            // Top: meters + room/objective banner.
+            VStack(spacing: 8) {
                 MetersHUD(meters: game.meters)
                     .padding(.top, 10)
+                banner
                 Spacer()
             }
 
@@ -50,6 +52,12 @@ struct GameContainerView: View {
                 }
             }
 
+            // Room-transition fade (also covers the HUD for a clean wipe).
+            Color.black
+                .opacity(game.fade)
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
+
             // Dialogue over a dimmed world.
             if let dilemma = game.activeDilemma, game.gameOver == nil {
                 Color.black.opacity(0.35).ignoresSafeArea()
@@ -70,5 +78,21 @@ struct GameContainerView: View {
         .statusBarHidden(true)
         .animation(.easeInOut(duration: 0.18), value: game.nearby)
         .animation(.easeInOut(duration: 0.2), value: game.activeDilemma?.id)
+        .animation(.easeInOut(duration: 0.22), value: game.fade)
+    }
+
+    private var banner: some View {
+        VStack(spacing: 2) {
+            Text(game.roomName)
+                .font(.system(.headline, design: .serif).weight(.bold))
+            Text(game.objective)
+                .font(.system(.caption, design: .serif))
+                .opacity(0.85)
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 7)
+        .background(.black.opacity(0.35), in: Capsule())
+        .multilineTextAlignment(.center)
     }
 }
