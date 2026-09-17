@@ -79,6 +79,21 @@ final class GameState: ObservableObject {
         phase = .playing
     }
 
+    // MARK: Inventory
+
+    func has(_ item: Item) -> Bool { inventory.contains(item) }
+    func add(_ item: Item) { inventory.append(item) }
+    func remove(_ item: Item) {
+        if let index = inventory.firstIndex(of: item) { inventory.remove(at: index) }
+    }
+
+    /// Resolve a dilemma choice: move items, then apply meters + advance clock.
+    func choose(_ choice: Choice) {
+        if let granted = choice.grant { add(granted) }
+        if let consumed = choice.consume { remove(consumed) }
+        apply(choice.delta)
+    }
+
     /// Apply a choice's deltas, advance the clock, then test for a loss.
     func apply(_ delta: MeterDelta) {
         meters.royalFavor = clamp(meters.royalFavor + delta.royalFavor)

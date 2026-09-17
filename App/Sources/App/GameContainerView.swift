@@ -25,7 +25,7 @@ struct GameContainerView: View {
                         .padding(.horizontal, 14)
                         .padding(.top, 8)
                     Spacer()
-                    InventoryBar(day: game.day, slot: game.slot)
+                    InventoryBar(items: game.inventory, day: game.day, slot: game.slot)
                         .padding(.horizontal, 14)
                         .padding(.bottom, 8)
                 }
@@ -36,7 +36,7 @@ struct GameContainerView: View {
                     Spacer()
                     if let npc = game.nearby, game.activeDilemma == nil {
                         Button {
-                            game.activeDilemma = DilemmaCatalog.dilemma(for: npc)
+                            game.activeDilemma = DilemmaCatalog.dilemma(for: npc, holdingLetter: game.has(.letter))
                         } label: {
                             Text("Approach")
                                 .font(Theme.body(16))
@@ -80,7 +80,7 @@ struct GameContainerView: View {
             if let dilemma = game.activeDilemma, game.phase == .playing {
                 Theme.ink.opacity(0.28).ignoresSafeArea()
                 DialogueCard(dilemma: dilemma) { choice in
-                    game.apply(choice.delta)
+                    game.choose(choice)
                     game.activeDilemma = nil
                 }
                 .transition(.opacity.combined(with: .move(edge: .bottom)))

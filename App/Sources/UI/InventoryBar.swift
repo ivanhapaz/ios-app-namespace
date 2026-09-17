@@ -3,12 +3,9 @@ import SwiftUI
 /// The persistent inventory bar (bottom): hand-drawn item tiles + a roman-numeral
 /// day count. Icons are drawn from primitives — no image assets.
 struct InventoryBar: View {
+    let items: [Item]
     let day: Int
     let slot: TimeSlot
-
-    // Item art is showcased here; gameplay will drive which tiles show once the
-    // quest-item system lands.
-    private let items: [Item] = [.letter, .jewel, .relic]
 
     var body: some View {
         HStack(spacing: 12) {

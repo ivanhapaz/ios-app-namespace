@@ -1,9 +1,12 @@
 import Foundation
 
-/// One option in a dilemma: a line of dialogue and the meter changes it causes.
+/// One option in a dilemma: a line of dialogue, the meter changes it causes, and
+/// (optionally) an item it grants you or consumes from your inventory.
 struct Choice {
     let text: String
     let delta: MeterDelta
+    var grant: Item? = nil
+    var consume: Item? = nil
 }
 
 /// A two-choice dilemma presented when you approach an NPC.
@@ -18,7 +21,19 @@ struct Dilemma: Identifiable {
 /// Starter dilemma content, kept as plain data so it's trivial to expand or move
 /// into JSON later. Values come straight from the design's section 6.
 enum DilemmaCatalog {
-    static func dilemma(for npc: NPCID) -> Dilemma {
+    static func dilemma(for npc: NPCID, holdingLetter: Bool = false) -> Dilemma {
+        // The Boleyn-letter quest: once you carry it, Cromwell offers to buy it.
+        if npc == .cromwell && holdingLetter {
+            return Dilemma(
+                speaker: "Cromwell",
+                setup: "That letter you carry — the one that ruins Lady Rochford. Hand it to me.",
+                choiceA: Choice(text: "Deliver the Boleyn letter.",
+                                delta: MeterDelta(royalFavor: 20, wealth: 20),
+                                consume: .letter),
+                choiceB: Choice(text: "Keep it to yourself.",
+                                delta: MeterDelta(suspicion: 5))
+            )
+        }
         switch npc {
         case .priest:
             return Dilemma(
@@ -52,7 +67,8 @@ enum DilemmaCatalog {
                 speaker: "Lady-in-Waiting",
                 setup: "I have a letter that would ruin Lady Rochford. Will you carry it?",
                 choiceA: Choice(text: "Take it.",
-                                delta: MeterDelta(suspicion: 10)),
+                                delta: MeterDelta(suspicion: 10),
+                                grant: .letter),
                 choiceB: Choice(text: "Refuse — keep your hands clean.",
                                 delta: MeterDelta(suspicion: -5))
             )
