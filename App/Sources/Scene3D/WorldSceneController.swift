@@ -146,7 +146,6 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
         DispatchQueue.main.async { [weak self] in
             self?.game?.roomName = name
             self?.game?.nearby = nil
-            self?.game?.objective = Self.objective(in: id)
         }
     }
 
@@ -466,20 +465,6 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
         return SCNVector3(x: a.x + (b.x - a.x) * t,
                           y: a.y + (b.y - a.y) * t,
                           z: a.z + (b.z - a.z) * t)
-    }
-
-    // MARK: Soft guidance copy
-
-    private static func objective(in room: RoomID) -> String {
-        switch room {
-        case .courtyard: return "The courtyard connects every room. Pick a doorway."
-        case .greatHall: return "A rival courtier eyes you. The King's chamber lies north."
-        case .privyChamber: return "The King's inner sanctum. Mind Cromwell."
-        case .chapel: return "The priest keeps count of your Piety."
-        case .kitchens: return "A servant trades in whispers."
-        case .gardens: return "A lady-in-waiting has secrets to share."
-        case .tower: return "To the Tower."
-        }
     }
 
     // MARK: Procedural textures + labels (so we ship no image files)
