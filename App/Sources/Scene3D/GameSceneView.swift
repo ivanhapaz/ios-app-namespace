@@ -6,9 +6,10 @@ import SceneKit
 /// camera follow.
 struct GameSceneView: UIViewRepresentable {
     let input: MovementInput
+    let game: GameState
 
     func makeCoordinator() -> WorldSceneController {
-        WorldSceneController(input: input)
+        WorldSceneController(input: input, game: game)
     }
 
     func makeUIView(context: Context) -> SCNView {

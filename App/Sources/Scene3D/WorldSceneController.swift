@@ -17,6 +17,11 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
     private let player = SCNNode()
     private let lookTarget = SCNNode()   // camera aims here (player's chest, not feet)
     private let input: MovementInput
+    private weak var game: GameState?
+
+    private var npcs: [(id: NPCID, node: SCNNode)] = []
+    private var lastNearby: NPCID?
+    private let interactRadius: Float = 3.0
 
     private var lastTime: TimeInterval = 0
 
@@ -32,8 +37,9 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
     private static let timber = UIColor(red: 0.34, green: 0.22, blue: 0.15, alpha: 1)
     private static let chapelRoof = UIColor(red: 0.32, green: 0.16, blue: 0.16, alpha: 1)
 
-    init(input: MovementInput) {
+    init(input: MovementInput, game: GameState? = nil) {
         self.input = input
+        self.game = game
         super.init()
         buildWorld()
     }
@@ -192,6 +198,7 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
         npc.position = SCNVector3(x: 5, y: 0, z: -8)
         npc.eulerAngles = SCNVector3(x: 0, y: Float.pi, z: 0) // face the courtyard
         scene.rootNode.addChildNode(npc)
+        npcs.append((id: .priest, node: npc))
     }
 
     private func buildPlayer() {
@@ -270,6 +277,29 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
         // Glide the camera to sit behind the player, based on their facing, so
         // it swings around as they turn (third-person follow).
         cameraNode.position = lerp(cameraNode.position, cameraTarget(), camLerp)
+
+        updateProximity()
+    }
+
+    /// Report the closest NPC within `interactRadius` to the game state, so the
+    /// UI can offer an "Approach" prompt. Only publishes on change, and hops to
+    /// the main thread since the render loop runs off-main.
+    private func updateProximity() {
+        var found: NPCID?
+        let p = player.position
+        for entry in npcs {
+            let dx = entry.node.position.x - p.x
+            let dz = entry.node.position.z - p.z
+            if (dx * dx + dz * dz) < interactRadius * interactRadius {
+                found = entry.id
+                break
+            }
+        }
+        guard found != lastNearby else { return }
+        lastNearby = found
+        DispatchQueue.main.async { [weak self] in
+            self?.game?.nearby = found
+        }
     }
 
     /// Desired camera position: `camDistance` behind the player's current facing
