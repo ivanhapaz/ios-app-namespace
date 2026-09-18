@@ -12,8 +12,10 @@ jobs:
       - nscloud-ubuntu-22.04-amd64-4x8-with-cache
       - nscloud-cache-tag-gamecore-swiftpm
     steps:
+      # Plain checkout here: nscloud-checkout-action needs the git-mirror cache
+      # label, which we don't need for this small package.
       - name: Checkout
-        uses: namespacelabs/nscloud-checkout-action@v8
+        uses: actions/checkout@v4
 
       # --- Swift toolchain -------------------------------------------------
       # Installs Swift on the stock Ubuntu runner. When we later create a
