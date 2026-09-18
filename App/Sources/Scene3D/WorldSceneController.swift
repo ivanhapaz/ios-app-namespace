@@ -24,6 +24,8 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
     private var currentRoom: RoomID = .courtyard
     private var previousRoom: RoomID?
     private let roomNode = SCNNode()        // all room-specific geometry lives here
+    private let ambientNode = SCNNode()     // per-room ambient (the lighting ladder)
+    private let sunNode = SCNNode()         // per-room directional light
     private var npcs: [(id: NPCID, node: SCNNode)] = []
     private var doorTriggers: [DoorTrigger] = []
     private var lastNearby: NPCID?
@@ -32,12 +34,20 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
     private var kingNode: SCNNode?
     private var lastSlot: TimeSlot?
 
+    // Dev walkthrough "tour": deliberate room-by-room movement with establishing
+    // pauses, so a viewer can follow where the courtier is and see each room.
+    private let tourEnabled = false // dev walkthrough only; never on in shipped play
+    private enum TourState { case begin, toViewpoint, viewing, toNPC, converse, toExit }
+    private var tourState: TourState = .begin
+    private var tourTimer: Double = 0
+
     // MARK: Tunables
     private let speed: Float = 6.0
     private let roomHalf: Float = 14          // half the room's side length
     private let wallHeight: Float = 6
     private let wallThick: Float = 0.6
     private let doorGap: Float = 4.5          // width of a doorway opening
+    private let doorHeight: Float = 2.9       // opening height (above it is a lintel, not sky)
     private let triggerDepth: Float = 2.6     // how far into the room a doorway trigger reaches
     private let clampMargin: Float = 0.9      // keep the player just inside the walls
     private let interactRadius: Float = 3.0
@@ -82,29 +92,24 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
         scene.fogStartDistance = 30
         scene.fogEndDistance = 90
 
-        // Lighting.
-        let ambient = SCNNode()
-        ambient.light = SCNLight()
-        ambient.light?.type = .ambient
-        ambient.light?.color = UIColor(white: 0.62, alpha: 1)
-        scene.rootNode.addChildNode(ambient)
+        // Lighting: base nodes configured once; intensities/tints per room
+        // are set by applyLighting(for:) — the "lighting ladder".
+        ambientNode.light = SCNLight()
+        ambientNode.light?.type = .ambient
+        scene.rootNode.addChildNode(ambientNode)
 
-        let sun = SCNNode()
-        sun.light = SCNLight()
-        sun.light?.type = .directional
-        sun.light?.color = UIColor(red: 1.0, green: 0.97, blue: 0.90, alpha: 1)
-        sun.light?.intensity = 1150
-        sun.light?.castsShadow = true
-        sun.light?.shadowMode = .deferred
-        sun.light?.shadowColor = UIColor(white: 0, alpha: 0.35)
-        sun.eulerAngles = SCNVector3(x: -Float.pi / 3, y: Float.pi / 4, z: 0)
-        scene.rootNode.addChildNode(sun)
+        sunNode.light = SCNLight()
+        sunNode.light?.type = .directional
+        sunNode.light?.castsShadow = true
+        sunNode.light?.shadowMode = .deferred
+        sunNode.light?.shadowColor = UIColor(white: 0, alpha: 0.35)
+        sunNode.eulerAngles = SCNVector3(x: -Float.pi / 3, y: Float.pi / 4, z: 0)
+        scene.rootNode.addChildNode(sunNode)
 
         scene.rootNode.addChildNode(roomNode)
 
         // Player (persists; only the room around them changes).
-        let body = Self.makeCharacter(tunic: UIColor(red: 0.20, green: 0.24, blue: 0.42, alpha: 1))
-        player.addChildNode(body)
+        player.addChildNode(CharacterKit.makePlayer())
         scene.rootNode.addChildNode(player)
         lookTarget.position = SCNVector3(x: 0, y: 1.4, z: 0)
         player.addChildNode(lookTarget)
@@ -133,9 +138,23 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
         let def = RoomCatalog.room(id)
         buildFloor(def)
         for edge in [Edge.north, .south, .east, .west] {
+            // Outdoor rooms open to the sky at the north — facades/perimeter
+            // (added by RoomDressing) form the backdrop instead of a wall.
+            if edge == .north && def.isOutdoor { continue }
             buildWall(on: edge, doorway: def.doorways.first { $0.edge == edge })
         }
+        if !def.isOutdoor {
+            // A timber ceiling so interiors feel enclosed (no sky overhead).
+            let ceiling = SCNBox(width: CGFloat(roomHalf * 2), height: 0.3,
+                                 length: CGFloat(roomHalf * 2), chamferRadius: 0)
+            ceiling.firstMaterial?.diffuse.contents = UIColor(hex: 0x3B2E20)
+            let node = SCNNode(geometry: ceiling)
+            node.position = SCNVector3(x: 0, y: wallHeight + 0.15, z: 0)
+            roomNode.addChildNode(node)
+        }
         buildRoomNPC(def)
+        roomNode.addChildNode(RoomDressing.dress(id))
+        applyLighting(for: id)
         kingNode = nil
         lastSlot = game?.slot
         addKingIfNeeded()
@@ -147,6 +166,10 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
         lastNearby = nil
         snapCameraBehindPlayer()
 
+        // Restart the tour's per-room sequence in the new room.
+        tourState = .toViewpoint
+        tourTimer = 0
+
         // Publish room + a soft objective to the HUD.
         let name = def.name
         DispatchQueue.main.async { [weak self] in
@@ -155,24 +178,56 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
         }
     }
 
+    /// The lighting ladder — each room is told apart by brightness/tint before
+    /// its props even register. Extra lights (fires, chandelier) live in the set
+    /// pieces; this sets the base ambient + directional per room.
+    private func applyLighting(for room: RoomID) {
+        let ambientTint: UIColor
+        let ambientIntensity: CGFloat
+        let sunIntensity: CGFloat
+        var sunTint = UIColor(red: 1.0, green: 0.97, blue: 0.90, alpha: 1)
+
+        switch room {
+        case .gardens:
+            ambientTint = UIColor(hex: 0xFFF6E0); ambientIntensity = 600; sunIntensity = 800
+        case .courtyard:
+            ambientTint = UIColor(hex: 0xFFF6E0); ambientIntensity = 500; sunIntensity = 750
+        case .kitchens:
+            ambientTint = UIColor(hex: 0x6E6353); ambientIntensity = 400; sunIntensity = 500
+        case .greatHall:
+            ambientTint = UIColor(hex: 0x6E6353); ambientIntensity = 300; sunIntensity = 700
+        case .privyChamber:
+            ambientTint = UIColor(hex: 0x6E6353); ambientIntensity = 300; sunIntensity = 600
+        case .chapel:
+            ambientTint = UIColor(hex: 0x6E6353); ambientIntensity = 200; sunIntensity = 500
+            sunTint = UIColor(hex: 0xC9D6E8)
+        case .tower:
+            ambientTint = UIColor(hex: 0x3A3630); ambientIntensity = 120; sunIntensity = 0
+        }
+
+        ambientNode.light?.color = ambientTint
+        ambientNode.light?.intensity = ambientIntensity
+        sunNode.light?.color = sunTint
+        sunNode.light?.intensity = sunIntensity
+    }
+
     private func buildFloor(_ def: RoomDefinition) {
         let floor = SCNBox(width: CGFloat(roomHalf * 2), height: 0.2,
                            length: CGFloat(roomHalf * 2), chamferRadius: 0)
         let mat = floor.firstMaterial
-        switch def.id {
-        case .courtyard:
-            mat?.diffuse.contents = Self.cobbleImage()
+        func tile(_ image: UIImage, repeats: Float) {
+            mat?.diffuse.contents = image
             mat?.diffuse.wrapS = .repeat
             mat?.diffuse.wrapT = .repeat
-            mat?.diffuse.contentsTransform = SCNMatrix4MakeScale(8, 8, 0)
-        case .gardens:
-            mat?.diffuse.contents = Self.gardenGreen
-        case .chapel:
-            mat?.diffuse.contents = Self.chapelStone
-        case .tower:
-            mat?.diffuse.contents = Self.towerStone
-        case .greatHall, .kitchens, .privyChamber:
-            mat?.diffuse.contents = Self.woodFloor
+            mat?.diffuse.contentsTransform = SCNMatrix4MakeScale(repeats, repeats, 0)
+        }
+        switch def.id {
+        case .courtyard: tile(FloorTextures.cobble(), repeats: 28)
+        case .chapel: tile(FloorTextures.flagstone(), repeats: 10)
+        case .kitchens: tile(FloorTextures.kitchenStone(), repeats: 10)
+        case .greatHall, .privyChamber: tile(FloorTextures.plank(), repeats: 14)
+        case .gardens: mat?.diffuse.contents = Palette.gardenGreen
+        case .tower: mat?.diffuse.contents = UIColor(hex: 0x6E675C)
         }
         let node = SCNNode(geometry: floor)
         node.position = SCNVector3(x: 0, y: -0.1, z: 0)
@@ -191,11 +246,13 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
             let offset = roomHalf - segLength / 2 // centre of each flanking segment
             addWallSegment(horizontal: horizontal, edgePos: edgePos, along: -offset, length: segLength)
             addWallSegment(horizontal: horizontal, edgePos: edgePos, along: offset, length: segLength)
+            addLintel(on: edge) // cap the opening so it's a door, not a full-height gap
 
             if doorway.locked {
                 addSealedDoor(on: edge)
             } else {
                 doorTriggers.append(makeTrigger(on: edge, doorway: doorway))
+                addDoorBackdrop(on: edge)  // a shadowy "beyond" so you don't see sky through the door
                 addDoorwaySign(on: edge, destination: doorway.destination)
             }
         } else {
@@ -222,6 +279,55 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
         let node = SCNNode(geometry: box)
         node.position = position
         node.castsShadow = true
+        roomNode.addChildNode(node)
+    }
+
+    /// Fill the gap above the door opening so you don't see sky through the top.
+    private func addLintel(on edge: Edge) {
+        let horizontal = (edge == .north || edge == .south)
+        let edgePos = edgePosition(edge)
+        let h = wallHeight - doorHeight
+        let midY = doorHeight + h / 2
+        let box: SCNBox
+        let pos: SCNVector3
+        if horizontal {
+            box = SCNBox(width: CGFloat(doorGap), height: CGFloat(h), length: CGFloat(wallThick), chamferRadius: 0.05)
+            pos = SCNVector3(x: 0, y: midY, z: edgePos)
+        } else {
+            box = SCNBox(width: CGFloat(wallThick), height: CGFloat(h), length: CGFloat(doorGap), chamferRadius: 0.05)
+            pos = SCNVector3(x: edgePos, y: midY, z: 0)
+        }
+        box.firstMaterial?.diffuse.contents = Self.plaster
+        let node = SCNNode(geometry: box)
+        node.position = pos
+        node.castsShadow = true
+        roomNode.addChildNode(node)
+    }
+
+    /// A dark panel just outside an open doorway — reads as a shadowed passage
+    /// beyond, rather than open sky.
+    private func addDoorBackdrop(on edge: Edge) {
+        let dark = UIColor(hex: 0x18160F)
+        let out: Float = 0.7
+        let box: SCNBox
+        let pos: SCNVector3
+        switch edge {
+        case .north:
+            box = SCNBox(width: CGFloat(doorGap + 0.6), height: CGFloat(doorHeight + 0.4), length: 0.3, chamferRadius: 0)
+            pos = SCNVector3(x: 0, y: doorHeight / 2, z: -roomHalf - out)
+        case .south:
+            box = SCNBox(width: CGFloat(doorGap + 0.6), height: CGFloat(doorHeight + 0.4), length: 0.3, chamferRadius: 0)
+            pos = SCNVector3(x: 0, y: doorHeight / 2, z: roomHalf + out)
+        case .east:
+            box = SCNBox(width: 0.3, height: CGFloat(doorHeight + 0.4), length: CGFloat(doorGap + 0.6), chamferRadius: 0)
+            pos = SCNVector3(x: roomHalf + out, y: doorHeight / 2, z: 0)
+        case .west:
+            box = SCNBox(width: 0.3, height: CGFloat(doorHeight + 0.4), length: CGFloat(doorGap + 0.6), chamferRadius: 0)
+            pos = SCNVector3(x: -roomHalf - out, y: doorHeight / 2, z: 0)
+        }
+        box.firstMaterial?.diffuse.contents = dark
+        let node = SCNNode(geometry: box)
+        node.position = pos
         roomNode.addChildNode(node)
     }
 
@@ -252,31 +358,29 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
     }
 
     private func addDoorwaySign(on edge: Edge, destination: RoomID) {
-        let label = Self.billboardLabel(RoomCatalog.room(destination).name)
-        let edgePos = edgePosition(edge)
-        let inward: Float = 0.6
-        let signY: Float = 4.6
+        let label = Self.signText(RoomCatalog.room(destination).name)
+        let signY: Float = doorHeight + 0.55 // sits on the lintel above the opening
+        let inset: Float = 0.14
         switch edge {
-        case .north: label.position = SCNVector3(x: 0, y: signY, z: edgePos + inward)
-        case .south: label.position = SCNVector3(x: 0, y: signY, z: edgePos - inward)
-        case .east:  label.position = SCNVector3(x: edgePos - inward, y: signY, z: 0)
-        case .west:  label.position = SCNVector3(x: edgePos + inward, y: signY, z: 0)
+        case .north:
+            label.position = SCNVector3(x: 0, y: signY, z: -roomHalf + inset)
+            label.eulerAngles = SCNVector3(x: 0, y: 0, z: 0)
+        case .south:
+            label.position = SCNVector3(x: 0, y: signY, z: roomHalf - inset)
+            label.eulerAngles = SCNVector3(x: 0, y: Float.pi, z: 0)
+        case .east:
+            label.position = SCNVector3(x: roomHalf - inset, y: signY, z: 0)
+            label.eulerAngles = SCNVector3(x: 0, y: -Float.pi / 2, z: 0)
+        case .west:
+            label.position = SCNVector3(x: -roomHalf + inset, y: signY, z: 0)
+            label.eulerAngles = SCNVector3(x: 0, y: Float.pi / 2, z: 0)
         }
         roomNode.addChildNode(label)
     }
 
     private func buildRoomNPC(_ def: RoomDefinition) {
         guard let npc = def.npc else { return }
-        let tunic: UIColor
-        switch npc {
-        case .priest: tunic = UIColor(red: 0.24, green: 0.20, blue: 0.30, alpha: 1)
-        case .rivalCourtier: tunic = UIColor(red: 0.45, green: 0.18, blue: 0.20, alpha: 1)
-        case .servantSpy: tunic = UIColor(red: 0.35, green: 0.32, blue: 0.26, alpha: 1)
-        case .ladyInWaiting: tunic = UIColor(red: 0.30, green: 0.42, blue: 0.48, alpha: 1)
-        case .cromwell: tunic = UIColor(red: 0.15, green: 0.15, blue: 0.18, alpha: 1)
-        case .king: tunic = UIColor(red: 0.29, green: 0.18, blue: 0.37, alpha: 1) // (not used as a resident)
-        }
-        let node = Self.makeCharacter(tunic: tunic)
+        let node = CharacterKit.character(for: npc)
         // Stand toward the back of the room, facing the centre.
         node.position = SCNVector3(x: 3, y: 0, z: -roomHalf * 0.45)
         node.eulerAngles = SCNVector3(x: 0, y: Float.pi, z: 0)
@@ -291,10 +395,7 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
     /// Add the crowned King to the current room if his schedule places him here.
     private func addKingIfNeeded() {
         guard let slot = game?.slot, slot.kingRoom == currentRoom else { return }
-        let king = Self.makeCharacter(
-            tunic: UIColor(red: 0.29, green: 0.18, blue: 0.37, alpha: 1), // royal purple
-            crowned: true
-        )
+        let king = CharacterKit.makeKing()
         king.position = SCNVector3(x: -3.5, y: 0, z: -roomHalf * 0.4)
         king.eulerAngles = SCNVector3(x: 0, y: Float.pi, z: 0)
         king.addChildNode(Self.glowRing())
@@ -382,6 +483,7 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
 
     func renderer(_ renderer: SCNSceneRenderer, updateAtTime time: TimeInterval) {
         if !isTransitioning {
+            if tourEnabled { driveTour() }
             let v = input.vector
             let magnitude = hypot(v.dx, v.dy)
             if magnitude > 0.05 {
@@ -406,6 +508,93 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
             updateProximity()
         }
         cameraNode.position = lerp(cameraNode.position, cameraTarget(), camLerp)
+    }
+
+    // MARK: Walkthrough tour (dev)
+
+    /// Drives `input.vector` and dilemma choices to play a legible tour: walk to
+    /// a south viewpoint and pause facing the room (camera frames the set
+    /// piece), approach the resident, converse, then leave through a doorway.
+    private func driveTour() {
+        guard let game = game else { return }
+        tourTimer += 1.0 / 60.0
+
+        // Global phases / modals first.
+        if game.phase == .title {
+            input.vector = .zero
+            if tourTimer > 1.6 { mainAsync { game.begin() }; tourState = .toViewpoint; tourTimer = 0 }
+            return
+        }
+        if game.phase == .gameOver {
+            input.vector = .zero
+            if tourTimer > 3.2 { mainAsync { game.restart() }; tourState = .toViewpoint; tourTimer = 0 }
+            return
+        }
+        if game.activeEvent != nil {
+            input.vector = .zero
+            if tourTimer > 2.2 { mainAsync { game.dismissEvent() }; tourTimer = 0 }
+            return
+        }
+        if game.activeDilemma != nil {
+            input.vector = .zero
+            if tourTimer > 2.6 {
+                mainAsync {
+                    if let d = game.activeDilemma { game.choose(d.choiceA) }
+                    game.activeDilemma = nil
+                }
+                tourState = .toExit
+                tourTimer = 0
+            }
+            return
+        }
+
+        switch tourState {
+        case .begin:
+            tourState = .toViewpoint; tourTimer = 0
+        case .toViewpoint:
+            if moveToward(0, 8) { tourState = .viewing; tourTimer = 0 }
+        case .viewing:
+            input.vector = .zero
+            player.eulerAngles = SCNVector3(x: 0, y: 0, z: 0) // face the north set piece
+            if tourTimer > 3.4 { tourState = npcs.isEmpty ? .toExit : .toNPC; tourTimer = 0 }
+        case .toNPC:
+            if let npc = npcs.first {
+                let p = npc.node.position
+                if moveToward(p.x, p.z + 2.3) { openTourDilemma(); tourState = .converse; tourTimer = 0 }
+            } else {
+                tourState = .toExit; tourTimer = 0
+            }
+        case .converse:
+            input.vector = .zero
+            if game.activeDilemma == nil && tourTimer > 1.6 { tourState = .toExit; tourTimer = 0 }
+        case .toExit:
+            let target = tourExitTarget()
+            _ = moveToward(target.0, target.1) // a doorway transition fires on arrival
+        }
+    }
+
+    private func moveToward(_ tx: Float, _ tz: Float) -> Bool {
+        let dx = tx - player.position.x
+        let dz = tz - player.position.z
+        let dist = hypot(dx, dz)
+        if dist < 0.7 { input.vector = .zero; return true }
+        input.vector = CGVector(dx: CGFloat(dx / dist), dy: CGFloat(-dz / dist))
+        return false
+    }
+
+    private func tourExitTarget() -> (Float, Float) {
+        let preferred = doorTriggers.first { $0.doorway.destination != previousRoom } ?? doorTriggers.first
+        if let d = preferred { return (d.centerX, d.centerZ) }
+        return (0, 8)
+    }
+
+    private func openTourDilemma() {
+        guard let game = game, let npc = npcs.first?.id else { return }
+        mainAsync { game.activeDilemma = DilemmaCatalog.dilemma(for: npc, holding: Set(game.inventory)) }
+    }
+
+    private func mainAsync(_ block: @escaping () -> Void) {
+        DispatchQueue.main.async(execute: block)
     }
 
     private func checkDoorways() {
@@ -467,50 +656,6 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
         cameraNode.position = cameraTarget()
     }
 
-    // MARK: Character factory
-
-    static func makeCharacter(tunic: UIColor, crowned: Bool = false) -> SCNNode {
-        let root = SCNNode()
-
-        let body = SCNCapsule(capRadius: 0.36, height: 1.5)
-        body.firstMaterial?.diffuse.contents = tunic
-        let bodyNode = SCNNode(geometry: body)
-        bodyNode.position = SCNVector3(x: 0, y: 0.9, z: 0)
-        bodyNode.castsShadow = true
-        root.addChildNode(bodyNode)
-
-        let head = SCNSphere(radius: 0.29)
-        head.firstMaterial?.diffuse.contents = UIColor(red: 0.90, green: 0.75, blue: 0.62, alpha: 1)
-        let headNode = SCNNode(geometry: head)
-        headNode.position = SCNVector3(x: 0, y: 1.78, z: 0)
-        headNode.castsShadow = true
-        root.addChildNode(headNode)
-
-        let nose = SCNCone(topRadius: 0, bottomRadius: 0.09, height: 0.22)
-        nose.firstMaterial?.diffuse.contents = UIColor(red: 0.95, green: 0.86, blue: 0.55, alpha: 1)
-        let noseNode = SCNNode(geometry: nose)
-        noseNode.position = SCNVector3(x: 0, y: 1.78, z: -0.30)
-        noseNode.eulerAngles = SCNVector3(x: -Float.pi / 2, y: 0, z: 0)
-        root.addChildNode(noseNode)
-
-        if crowned {
-            let gold = UIColor(hex: 0xC9A227)
-            let band = SCNTorus(ringRadius: 0.27, pipeRadius: 0.05)
-            band.firstMaterial?.diffuse.contents = gold
-            let bandNode = SCNNode(geometry: band)
-            bandNode.position = SCNVector3(x: 0, y: 2.03, z: 0)
-            root.addChildNode(bandNode)
-
-            let finial = SCNCone(topRadius: 0, bottomRadius: 0.09, height: 0.2)
-            finial.firstMaterial?.diffuse.contents = gold
-            let finialNode = SCNNode(geometry: finial)
-            finialNode.position = SCNVector3(x: 0, y: 2.2, z: 0)
-            root.addChildNode(finialNode)
-        }
-
-        return root
-    }
-
     // MARK: Small math helpers
 
     private func clamp(_ x: Float, _ lo: Float, _ hi: Float) -> Float {
@@ -538,6 +683,20 @@ final class WorldSceneController: NSObject, SCNSceneRendererDelegate {
                                                (minB.y + maxB.y) / 2, 0)
         node.scale = SCNVector3(x: 0.6, y: 0.6, z: 0.6)
         node.constraints = [SCNBillboardConstraint()]
+        return node
+    }
+
+    /// A fixed (non-billboard) engraved doorway sign, mounted on the lintel.
+    private static func signText(_ string: String) -> SCNNode {
+        let text = SCNText(string: string, extrusionDepth: 0.04)
+        text.font = UIFont(name: "Georgia-Bold", size: 1.2) ?? UIFont.boldSystemFont(ofSize: 1.2)
+        text.flatness = 0.1
+        text.firstMaterial?.diffuse.contents = UIColor(hex: 0x3A2E1A)
+        text.firstMaterial?.isDoubleSided = true
+        let node = SCNNode(geometry: text)
+        let (minB, maxB) = text.boundingBox
+        node.pivot = SCNMatrix4MakeTranslation((minB.x + maxB.x) / 2, (minB.y + maxB.y) / 2, 0)
+        node.scale = SCNVector3(x: 0.5, y: 0.5, z: 0.5)
         return node
     }
 
