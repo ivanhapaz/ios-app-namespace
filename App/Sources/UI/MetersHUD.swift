@@ -1,4 +1,5 @@
 import SwiftUI
+import GameCore
 
 /// The persistent four-meter HUD, top of screen. A 2×2 grid of chip + labelled
 /// bar. Suspicion is the danger meter: danger-coloured label, an extra outline,

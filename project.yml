@@ -14,6 +14,10 @@ settings:
     CODE_SIGNING_REQUIRED: NO
     CODE_SIGN_IDENTITY: ""
 
+packages:
+  GameCore:
+    path: GameCore
+
 targets:
   TudorCourt:
     type: application
@@ -21,6 +25,8 @@ targets:
     sources:
       - path: App/Sources
       - path: App/Resources
+    dependencies:
+      - package: GameCore
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
@@ -32,32 +38,12 @@ targets:
         INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown"
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
 
-  TudorCourtTests:
-    type: bundle.unit-test
-    platform: iOS
-    sources:
-      - path: Tests
-    dependencies:
-      - target: TudorCourt
-    settings:
-      base:
-        GENERATE_INFOPLIST_FILE: YES
-        PRODUCT_BUNDLE_IDENTIFIER: com.namespace.tudorcourtTests
-        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/TudorCourt.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/TudorCourt"
-        BUNDLE_LOADER: "$(TEST_HOST)"
-
 schemes:
   TudorCourt:
     build:
       targets:
         TudorCourt: all
-        TudorCourtTests: [test]
     run:
       config: Debug
-    test:
-      config: Debug
-      gatherCoverageData: true
-      targets:
-        - TudorCourtTests
     archive:
       config: Release

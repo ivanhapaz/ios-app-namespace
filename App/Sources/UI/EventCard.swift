@@ -1,4 +1,5 @@
 import SwiftUI
+import GameCore
 
 /// A one-button "event" card for delayed consequences (e.g. the arrest a couple
 /// of days after you sell out an ally). Manuscript-styled like the dilemma card.

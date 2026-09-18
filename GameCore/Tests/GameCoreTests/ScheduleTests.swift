@@ -1,7 +1,7 @@
 import XCTest
-@testable import TudorCourt
+import GameCore
 
-/// Phase 4 clock logic: slot advancement, day roll-over, and the King's routine.
+/// Clock logic: slot advancement, day roll-over, and the King's routine.
 final class ScheduleTests: XCTestCase {
 
     func testSlotAdvanceAndDayRollover() {
@@ -22,24 +22,24 @@ final class ScheduleTests: XCTestCase {
     }
 
     func testWaitingThreeSlotsAdvancesOneDay() {
-        let game = GameState()
-        XCTAssertEqual(game.day, 1)
-        XCTAssertEqual(game.slot, .morning)
+        var engine = GameEngine()
+        XCTAssertEqual(engine.day, 1)
+        XCTAssertEqual(engine.slot, .morning)
 
-        game.wait() // morning -> midday
-        XCTAssertEqual(game.slot, .midday)
-        XCTAssertEqual(game.day, 1)
+        engine.wait() // morning -> midday
+        XCTAssertEqual(engine.slot, .midday)
+        XCTAssertEqual(engine.day, 1)
 
-        game.wait() // midday -> evening
-        game.wait() // evening -> morning, day 2
-        XCTAssertEqual(game.slot, .morning)
-        XCTAssertEqual(game.day, 2)
+        engine.wait() // midday -> evening
+        engine.wait() // evening -> morning, day 2
+        XCTAssertEqual(engine.slot, .morning)
+        XCTAssertEqual(engine.day, 2)
     }
 
     func testChoiceAdvancesTheClock() {
-        let game = GameState()
-        game.apply(MeterDelta()) // neutral choice
-        XCTAssertEqual(game.slot, .midday)
-        XCTAssertNil(game.gameOver)
+        var engine = GameEngine()
+        engine.apply(MeterDelta()) // neutral
+        XCTAssertEqual(engine.slot, .midday)
+        XCTAssertNil(engine.gameOver)
     }
 }

@@ -1,8 +1,7 @@
 import XCTest
-@testable import TudorCourt
+import GameCore
 
-/// Phase 1 sanity checks on the palace floor plan. These are pure-data tests
-/// (no UIKit/SpriteKit), so they're fast and stable in CI.
+/// Floor-plan sanity checks — pure data, so they run fast on Linux.
 final class RoomCatalogTests: XCTestCase {
 
     func testEveryRoomHasADefinition() {
@@ -20,7 +19,6 @@ final class RoomCatalogTests: XCTestCase {
     }
 
     func testKitchensAndPrivyHangOffTheGreatHall() {
-        // Both sit one step deeper, through the Great Hall — not off the courtyard.
         XCTAssertNotNil(RoomCatalog.doorway(in: .greatHall, leadingTo: .privyChamber))
         XCTAssertNotNil(RoomCatalog.doorway(in: .greatHall, leadingTo: .kitchens))
         XCTAssertNil(RoomCatalog.doorway(in: .courtyard, leadingTo: .privyChamber))
@@ -35,9 +33,6 @@ final class RoomCatalogTests: XCTestCase {
         }
     }
 
-    /// Every open doorway must have a matching open doorway leading back, so the
-    /// player can always return the way they came. (With the north wall solid,
-    /// the return door need not be on the geometrically opposite wall.)
     func testOpenDoorwaysAreReciprocal() {
         for (id, def) in RoomCatalog.all {
             for door in def.doorways where !door.locked {
@@ -55,8 +50,6 @@ final class RoomCatalogTests: XCTestCase {
         let gardens = RoomCatalog.room(.gardens)
         XCTAssertTrue(chapel.doorways.contains { $0.destination == .tower && $0.locked })
         XCTAssertTrue(gardens.doorways.contains { $0.destination == .tower && $0.locked })
-
-        // The Tower cannot be reached by any open doorway.
         for (_, def) in RoomCatalog.all {
             XCTAssertFalse(def.doorways.contains { $0.destination == .tower && !$0.locked },
                            "The Tower must only be reachable via locked, story-only passages")
