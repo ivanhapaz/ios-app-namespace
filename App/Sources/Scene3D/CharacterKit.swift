@@ -1,5 +1,6 @@
 import SceneKit
 import UIKit
+import GameCore
 
 /// Builds the cast from SceneKit primitives, following the designer's 3D
 /// Primitive Kit exactly (rig = capsule body at y0.9 + sphere head at y1.78,

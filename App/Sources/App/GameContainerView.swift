@@ -1,4 +1,5 @@
 import SwiftUI
+import GameCore
 
 /// Hosts the 3D palace and layers the manuscript UI over it, driven by the game
 /// phase: a title screen, the live HUD + inventory + dialogue, room-transition

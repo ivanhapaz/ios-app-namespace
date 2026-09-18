@@ -1,4 +1,5 @@
 import SwiftUI
+import GameCore
 
 /// The persistent inventory bar (bottom): hand-drawn item tiles + a roman-numeral
 /// day count. Icons are drawn from primitives — no image assets.

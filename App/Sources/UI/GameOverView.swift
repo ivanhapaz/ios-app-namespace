@@ -1,4 +1,5 @@
 import SwiftUI
+import GameCore
 
 /// The loss screen: a full-screen scrim, then a danger-ruled manuscript panel
 /// with "TO THE TOWER", the cause of death, a run summary, and a restart.

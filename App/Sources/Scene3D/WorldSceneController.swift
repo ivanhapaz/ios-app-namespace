@@ -1,5 +1,6 @@
 import SceneKit
 import UIKit
+import GameCore
 
 /// Builds and drives the 3D palace: one bounded room at a time, rebuilt when you
 /// walk through a doorway. Rooms come from `RoomCatalog`, so the world is exactly

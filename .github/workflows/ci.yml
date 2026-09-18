@@ -6,15 +6,40 @@ on:
   pull_request:
 
 jobs:
-  build:
+  # ---- Linux: fast, cheap logic tests for the pure-Swift GameCore package ----
+  gamecore:
+    runs-on:
+      - nscloud-ubuntu-22.04-amd64-4x8-with-cache
+      - nscloud-cache-tag-gamecore-swiftpm
+    steps:
+      - name: Checkout
+        uses: namespacelabs/nscloud-checkout-action@v8
+
+      # --- Swift toolchain -------------------------------------------------
+      # Installs Swift on the stock Ubuntu runner. When we later create a
+      # custom base image with Swift preinstalled, delete this step and point
+      # `runs-on` at that Linux profile — nothing else changes.
+      - name: Set up Swift
+        uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: "5.10"
+      # ---------------------------------------------------------------------
+
+      - name: Cache SwiftPM
+        uses: namespacelabs/nscloud-cache-action@v1
+        with:
+          cache: swiftpm
+
+      - name: Test GameCore
+        run: swift test --package-path GameCore
+
+  # ---- macOS: build the full iOS app (SwiftUI + SceneKit) --------------------
+  app:
     runs-on: namespace-profile-ivanha
     steps:
       - name: Checkout
         uses: namespacelabs/nscloud-checkout-action@v8
 
-      # Reuse compiled Swift (Xcode DerivedData) and Homebrew downloads across
-      # runs via Namespace Cache Volumes. Must come after checkout (which wipes
-      # the workspace) and before the build/install steps that benefit.
       - name: Configure Namespace cache (Xcode + Homebrew)
         uses: namespacelabs/nscloud-cache-action@v1
         with:
@@ -41,8 +66,6 @@ jobs:
       - name: Select iOS Simulator
         id: sim
         run: |
-          # Pick an available iPhone simulator by name so we don't hard-code one
-          # that a given Xcode version might not ship.
           DEVICE=$(xcrun simctl list devices available -j | python3 -c "
           import sys, json
           data = json.load(sys.stdin)['devices']
@@ -52,19 +75,10 @@ jobs:
           echo "device=$DEVICE" >> "$GITHUB_OUTPUT"
           echo "Selected simulator: $DEVICE"
 
-      - name: Build
+      - name: Build app
         run: |
           set -o pipefail
           xcodebuild build \
-            -project TudorCourt.xcodeproj \
-            -scheme TudorCourt \
-            -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.device }}" \
-            CODE_SIGNING_ALLOWED=NO
-
-      - name: Test
-        run: |
-          set -o pipefail
-          xcodebuild test \
             -project TudorCourt.xcodeproj \
             -scheme TudorCourt \
             -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.device }}" \

@@ -3,12 +3,12 @@ import Foundation
 /// The three slots of a court day. The King keeps a fixed daily routine, so the
 /// slot determines which room he holds court in — and therefore when you can
 /// seek his favour.
-enum TimeSlot: Int, CaseIterable {
+public enum TimeSlot: Int, CaseIterable {
     case morning
     case midday
     case evening
 
-    var label: String {
+    public var label: String {
         switch self {
         case .morning: return "MORNING"
         case .midday: return "MIDDAY"
@@ -18,7 +18,7 @@ enum TimeSlot: Int, CaseIterable {
 
     /// Advance one slot. Returns the next slot and whether the day rolled over
     /// (Evening → next Morning).
-    func advanced() -> (slot: TimeSlot, newDay: Bool) {
+    public func advanced() -> (slot: TimeSlot, newDay: Bool) {
         switch self {
         case .morning: return (.midday, false)
         case .midday: return (.evening, false)
@@ -27,7 +27,7 @@ enum TimeSlot: Int, CaseIterable {
     }
 
     /// Where His Majesty holds court during this slot.
-    var kingRoom: RoomID {
+    public var kingRoom: RoomID {
         switch self {
         case .morning: return .chapel        // at Mass
         case .midday: return .greatHall       // holding court

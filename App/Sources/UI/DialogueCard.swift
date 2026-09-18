@@ -1,4 +1,5 @@
 import SwiftUI
+import GameCore
 
 /// The dilemma card: a manuscript panel with a vermilion drop cap, the setup in
 /// Iowan Old Style, a gold divider, and two roman-numeralled choice buttons.

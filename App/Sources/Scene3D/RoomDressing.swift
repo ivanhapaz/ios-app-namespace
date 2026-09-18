@@ -1,5 +1,6 @@
 import SceneKit
 import UIKit
+import GameCore
 
 /// Set dressing for each room, composed from `Prim` primitives per the
 /// designer's 3D Primitive Kit. `dress(_:)` returns a node holding every set
